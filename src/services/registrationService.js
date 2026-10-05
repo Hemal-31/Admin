@@ -1,19 +1,37 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabase } from '../config/supabase';
 
 export async function getRegistrationFees() {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/get-registration-fees`, {
-    headers: {
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-  });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Unable to load registration fees.');
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/get-registration-fees`, {
+      headers: {
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    });
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        DAY_1: Number(data.DAY_1 || 0),
+        DAY_2: Number(data.DAY_2 || 0),
+      };
+    }
+  } catch (err) {
+    console.warn('Edge function get-registration-fees notice:', err);
   }
-  return {
-    DAY_1: Number(data.DAY_1 || 0),
-    DAY_2: Number(data.DAY_2 || 0),
-  };
+
+  // Fallback to Supabase RPC
+  try {
+    const { data, error } = await supabase.rpc('get_registration_fees');
+    if (!error && data) {
+      return {
+        DAY_1: Number(data?.DAY_1 || 0),
+        DAY_2: Number(data?.DAY_2 || 0),
+      };
+    }
+  } catch (rpcErr) {
+    console.warn('RPC get_registration_fees notice:', rpcErr);
+  }
+
+  return { DAY_1: 250, DAY_2: 250 };
 }
 
 export async function getSpecialEvents() {
@@ -39,9 +57,10 @@ export async function submitRegistration({
   department,
   year,
   selectedDay,
+  selectedEventIds = [],
   specialEventCodes = [],
-  utr,
-  paymentScreenshotFile,
+  utr = '',
+  paymentScreenshotFile = null,
 }) {
   const fd = new FormData();
   fd.append('name', name.trim());
@@ -50,10 +69,11 @@ export async function submitRegistration({
   fd.append('college', college.trim());
   fd.append('department', department.trim());
   fd.append('year', year || '');
-  fd.append('utr', utr.trim());
+  if (utr) fd.append('utr', utr.trim());
   fd.append('selected_day', selectedDay);
+  fd.append('selected_event_ids', JSON.stringify(selectedEventIds));
   fd.append('special_event_codes', JSON.stringify(specialEventCodes));
-  fd.append('payment_screenshot', paymentScreenshotFile);
+  if (paymentScreenshotFile) fd.append('payment_screenshot', paymentScreenshotFile);
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/public-register`, {
     method: 'POST',

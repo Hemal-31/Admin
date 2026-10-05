@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider } from './context/AuthContext';
+import { ToastContainer } from './components/common/ToastContainer';
 
 // Public Pages
 import PortalHub from './pages/public/PortalHub';
@@ -52,6 +53,7 @@ export default function App() {
   return (
     <ToastProvider>
       <AuthProvider>
+        <ToastContainer />
         <ScrollToTop />
         <Routes>
           {/* Public Portal Routes */}
@@ -65,12 +67,12 @@ export default function App() {
 
           {/* Legacy Static Redirections */}
           <Route path="/register2/registration/*" element={<Navigate to="/register" replace />} />
-          <Route path="/register2/team/create*" element={<Navigate to="/team/create" replace />} />
-          <Route path="/register2/team/join*" element={<Navigate to="/team/join" replace />} />
+          <Route path="/register2/team/create/*" element={<Navigate to="/team/create" replace />} />
+          <Route path="/register2/team/join/*" element={<Navigate to="/team/join" replace />} />
           <Route path="/register2/checking/*" element={<Navigate to="/check" replace />} />
-          <Route path="/Admins/admin/login*" element={<Navigate to="/admin/login" replace />} />
+          <Route path="/Admins/admin/login/*" element={<Navigate to="/admin/login" replace />} />
           <Route path="/Admins/admin/*" element={<Navigate to="/admin" replace />} />
-          <Route path="/CoOrd/coordinator/login*" element={<Navigate to="/coordinator/login" replace />} />
+          <Route path="/CoOrd/coordinator/login/*" element={<Navigate to="/coordinator/login" replace />} />
           <Route path="/CoOrd/coordinator/*" element={<Navigate to="/coordinator" replace />} />
 
           {/* Admin Protected Routes */}
@@ -78,7 +80,7 @@ export default function App() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="registrations" element={<AdminRegistrations />} />
+            <Route path="registrations" element={<Navigate to="/admin/participants" replace />} />
             <Route path="participants" element={<AdminRegistrations />} />
             <Route path="payments" element={<AdminPayments />} />
             <Route path="events" element={<AdminEvents />} />
@@ -87,7 +89,7 @@ export default function App() {
             <Route path="attendance" element={<AdminAttendance />} />
             <Route path="main-attendance" element={<AdminMainAttendance />} />
             <Route path="food-tokens" element={<AdminFoodTokens />} />
-            <Route path="announcements" element={<AdminAnnouncements />} />
+            <Route path="announcements" element={<Navigate to="/admin/emails" replace />} />
             <Route path="emails" element={<AdminEmails />} />
             <Route path="reports" element={<AdminReports />} />
             <Route path="settings" element={<AdminSettings />} />
@@ -102,7 +104,7 @@ export default function App() {
             <Route path="payments" element={<CoordinatorPayments />} />
             <Route path="teams" element={<CoordinatorTeams />} />
             <Route path="attendance" element={<CoordinatorAttendance />} />
-            <Route path="announcements" element={<CoordinatorAnnouncements />} />
+            <Route path="announcements" element={<Navigate to="/coordinator/emails" replace />} />
             <Route path="emails" element={<CoordinatorEmails />} />
             <Route path="reports" element={<CoordinatorReports />} />
           </Route>

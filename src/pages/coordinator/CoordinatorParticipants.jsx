@@ -9,6 +9,7 @@ import {
 } from '../../services/coordinatorService';
 import { subscribeToRealtimeUpdates } from '../../utils/statusStore';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { DetailTable, prepareParticipantDetails } from '../../components/common/DetailsModal';
 import {
   Search,
   Filter,
@@ -32,7 +33,7 @@ import {
 } from 'lucide-react';
 
 export default function CoordinatorParticipants() {
-  const { user, getCoordinatorClientInstance } = useAuth();
+  const { user, coordinatorProfile, getCoordinatorClientInstance } = useAuth();
   const { addToast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -59,7 +60,7 @@ export default function CoordinatorParticipants() {
   const loadData = async () => {
     try {
       setRefreshing(true);
-      const coordId = user?.id || null;
+      const coordId = coordinatorProfile?.id || user?.id || null;
       let normalEvents = [];
       let specialEvents = [];
 
@@ -794,6 +795,14 @@ export default function CoordinatorParticipants() {
               {/* Tab 1: Details */}
               {activeModalTab === 'Details' && (
                 <div className="space-y-4">
+                  {/* Registration Info Banner */}
+                  <div className="flex items-center justify-between p-3 bg-[#0e0c22] rounded-xl border border-[#2a1f52]">
+                    <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Registration Code</div>
+                    <div className="font-mono font-bold text-brand-cyan text-base tracking-widest">
+                      {selectedParticipant.registration_code || '—'}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="p-3.5 bg-[#181238] rounded-xl border border-[#2a1f52]">
                       <div className="text-xs font-semibold text-slate-400">Full Name</div>
@@ -817,6 +826,13 @@ export default function CoordinatorParticipants() {
                     </div>
 
                     <div className="p-3.5 bg-[#181238] rounded-xl border border-[#2a1f52]">
+                      <div className="text-xs font-semibold text-slate-400">Year of Study</div>
+                      <div className="font-bold text-white mt-1 text-[15px]">
+                        {selectedParticipant.participants?.year || '—'}
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 bg-[#181238] rounded-xl border border-[#2a1f52]">
                       <div className="text-xs font-semibold text-slate-400">College</div>
                       <div className="font-bold text-white mt-1 text-[15px]">
                         {selectedParticipant.participants?.college || '—'}
@@ -830,17 +846,40 @@ export default function CoordinatorParticipants() {
                       </div>
                     </div>
 
-                    <div className="p-3.5 bg-[#181238] rounded-xl border border-[#2a1f52]">
-                      <div className="text-xs font-semibold text-slate-400">Events Registered</div>
-                      <div className="flex flex-wrap gap-1.5 mt-1.5">
-                        {regEventsList.map((e, i) => (
+                    <div className="sm:col-span-2 p-3.5 bg-[#181238] rounded-xl border border-[#2a1f52]">
+                      <div className="text-xs font-semibold text-slate-400 mb-1.5">Events Registered</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {regEventsList.length > 0 ? regEventsList.map((e, i) => (
                           <span
                             key={i}
                             className="px-2.5 py-1 bg-[#251b4d] text-purple-200 border border-purple-500/30 rounded-md text-xs font-medium"
                           >
                             {e.name}
                           </span>
-                        ))}
+                        )) : (
+                          <span className="text-slate-400 text-sm">
+                            {selectedParticipant.selected_day === 'BOTH' ? 'Day 1 & Day 2 Track' : selectedParticipant.selected_day || 'Symposium Pass'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 bg-[#181238] rounded-xl border border-[#2a1f52]">
+                      <div className="text-xs font-semibold text-slate-400">Selected Day</div>
+                      <div className="font-bold text-white mt-1 text-[15px]">
+                        {selectedParticipant.selected_day === 'BOTH' ? 'Day 1 & Day 2'
+                          : selectedParticipant.selected_day === 'DAY_1' ? 'Day 1 (Technical)'
+                          : selectedParticipant.selected_day === 'DAY_2' ? 'Day 2 (Non-Technical)'
+                          : selectedParticipant.selected_day || '—'}
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 bg-[#181238] rounded-xl border border-[#2a1f52]">
+                      <div className="text-xs font-semibold text-slate-400">Registered On</div>
+                      <div className="font-bold text-white mt-1 text-[15px]">
+                        {selectedParticipant.created_at
+                          ? new Date(selectedParticipant.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                          : '—'}
                       </div>
                     </div>
 
@@ -850,7 +889,7 @@ export default function CoordinatorParticipants() {
                         {isPartVerified ? (
                           <span className="text-emerald-400 flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                            Paid & Verified
+                            Paid &amp; Verified
                           </span>
                         ) : isPartRejected ? (
                           <span className="text-rose-400 flex items-center gap-1.5">
@@ -885,9 +924,6 @@ export default function CoordinatorParticipants() {
                             Pending Verification
                           </span>
                         )}
-                      </div>
-                      <div className="text-xs text-slate-400 mt-0.5">
-                        {selectedParticipant.created_at ? new Date(selectedParticipant.created_at).toLocaleDateString() : 'Sep 12, 2026'}
                       </div>
                     </div>
                   </div>

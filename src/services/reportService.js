@@ -2,7 +2,6 @@ import { supabase } from '../config/supabase';
 import { downloadCsv } from '../utils/helpers';
 import { generateCyberPdfReport } from '../utils/pdfReportGenerator';
 import { applyRegistrationOverrides, applyPaymentOverrides } from '../utils/statusStore';
-import { BASELINE_REGISTRATIONS, BASELINE_PAYMENTS } from '../utils/sampleData';
 import { getCoordinatorParticipants } from './coordinatorService';
 
 /**
@@ -15,15 +14,11 @@ export async function getLiveRegistrationsData() {
       .from('registrations')
       .select('id, registration_code, status, selected_day, created_at, participants(name, email, phone, college, department), team_members(event_teams(team_name)), payments(status, amount, utr)');
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       list = data;
     }
   } catch (err) {
     console.warn('Registrations query notice:', err);
-  }
-
-  if (!list.length) {
-    list = BASELINE_REGISTRATIONS;
   }
 
   return applyRegistrationOverrides(list);
@@ -100,15 +95,11 @@ export async function getLivePaymentsData() {
       .from('payments')
       .select('registration_id, amount, utr, status, submitted_at, verified_at, registrations(registration_code, selected_day, participants(name, college, department))');
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       list = data;
     }
   } catch (err) {
     console.warn('Payments query notice:', err);
-  }
-
-  if (!list.length) {
-    list = BASELINE_PAYMENTS;
   }
 
   return applyPaymentOverrides(list);

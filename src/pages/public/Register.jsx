@@ -13,7 +13,6 @@ import confetti from 'canvas-confetti';
 import {
   Calendar,
   CreditCard,
-  Upload,
   CheckCircle,
   AlertCircle,
   HelpCircle,
@@ -38,8 +37,6 @@ export function Register() {
 
   const [selectedDay, setSelectedDay] = useState('');
   const [selectedSpecialEvents, setSelectedSpecialEvents] = useState([]);
-  const [screenshotFile, setScreenshotFile] = useState(null);
-  const [screenshotPreview, setScreenshotPreview] = useState('');
 
   const [fees, setFees] = useState({ DAY_1: 0, DAY_2: 0 });
   const [specialEvents, setSpecialEvents] = useState([]);
@@ -85,27 +82,6 @@ export function Register() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleFileChange(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      addToast({
-        title: 'File Too Large',
-        message: 'Payment screenshot must be 5 MB or smaller.',
-        type: 'error',
-      });
-      return;
-    }
-
-    setScreenshotFile(file);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setScreenshotPreview(reader.result);
-    };
-    reader.readAsDataURL(file);
-  }
-
   function toggleSpecialEvent(code) {
     setSelectedSpecialEvents((prev) =>
       prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
@@ -133,15 +109,6 @@ export function Register() {
       return;
     }
 
-    if (!screenshotFile) {
-      addToast({
-        title: 'Proof Required',
-        message: 'Please upload your UPI payment screenshot proof.',
-        type: 'error',
-      });
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
@@ -155,7 +122,6 @@ export function Register() {
         selectedDay,
         specialEventCodes: selectedSpecialEvents,
         utr: formData.utr,
-        paymentScreenshotFile: screenshotFile,
       });
 
       // Save locally for quick lookup
@@ -249,8 +215,8 @@ export function Register() {
 
             <h2 style={{ fontSize: '1.75rem', marginBottom: '8px' }}>Registration Submitted!</h2>
             <p style={{ color: 'var(--text-muted)', maxWidth: '520px', margin: '0 auto 24px' }}>
-              Your registration is currently <strong style={{ color: '#fbbf24' }}>UNDER REVIEW</strong>. 
-              Our admin team will verify your UTR and payment screenshot shortly.
+              Your payment is processed automatically once the transfer is confirmed. Your registration is currently
+              <strong style={{ color: '#fbbf24' }}> UNDER REVIEW</strong> while the payment status updates.
             </p>
 
             <div
@@ -304,8 +270,6 @@ export function Register() {
                   });
                   setSelectedDay('');
                   setSelectedSpecialEvents([]);
-                  setScreenshotFile(null);
-                  setScreenshotPreview('');
                 }}
                 className="btn btn-secondary"
               >
@@ -573,7 +537,6 @@ export function Register() {
                       marginBottom: '12px',
                     }}
                   >
-                    {/* Simulated High-tech College QR */}
                     <div
                       style={{
                         width: '130px',
@@ -590,53 +553,19 @@ export function Register() {
                   </div>
                 </div>
 
-                {/* UTR & Screenshot */}
-                <div>
-                  <div className="form-group">
-                    <label className="form-label">UTR / UPI Transaction ID *</label>
-                    <input
-                      type="text"
-                      name="utr"
-                      required
-                      className="form-input"
-                      placeholder="12-digit transaction ID"
-                      value={formData.utr}
-                      onChange={handleInputChange}
-                    />
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '4px' }}>
-                      Enter the exact 12-digit UTR from your payment receipt.
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Payment Screenshot Proof *</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      className="form-input"
-                      onChange={handleFileChange}
-                    />
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '4px' }}>
-                      PNG, JPG or WEBP up to 5 MB.
-                    </div>
-
-                    {screenshotPreview && (
-                      <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <img
-                          src={screenshotPreview}
-                          alt="Preview"
-                          style={{
-                            width: '60px',
-                            height: '60px',
-                            borderRadius: '8px',
-                            objectFit: 'cover',
-                            border: '1px solid var(--border-cyan)',
-                          }}
-                        />
-                        <span style={{ fontSize: '0.82rem', color: '#34d399' }}>Screenshot attached</span>
-                      </div>
-                    )}
+                <div className="form-group">
+                  <label className="form-label">Transaction ID *</label>
+                  <input
+                    type="text"
+                    name="utr"
+                    required
+                    className="form-input"
+                    placeholder="Enter your payment transaction ID"
+                    value={formData.utr}
+                    onChange={handleInputChange}
+                  />
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '4px' }}>
+                    Payment is automated after successful transfer, so this transaction ID is captured when the payment is confirmed.
                   </div>
                 </div>
               </div>

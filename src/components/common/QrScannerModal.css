@@ -1,0 +1,198 @@
+/* ==========================================================================
+   CYBERSENTINEL 2K26 — MODERN PAYMENT-APP QR SCANNER (PAYTM-STYLE)
+   High-tech, glowing scanning frame with animated laser & corner brackets
+   ========================================================================== */
+
+.cyber-qr-scanner-card {
+  position: relative;
+  width: 100%;
+  border-radius: 16px;
+  background: #050816;
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.12), inset 0 0 20px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 340px;
+}
+
+/* Base camera viewport container */
+.cyber-qr-viewport {
+  position: relative;
+  width: 100%;
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#html5-qr-reader-container {
+  width: 100% !important;
+  border: none !important;
+}
+
+#html5-qr-reader-container video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 14px;
+}
+
+#html5-qr-reader-container img[alt="Info icon"],
+#html5-qr-reader-container div[style*="text-align"] {
+  display: none !important;
+}
+
+/* Semi-transparent dark mask overlay */
+.cyber-qr-mask {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    transparent 110px,
+    rgba(3, 7, 18, 0.65) 150px,
+    rgba(3, 7, 18, 0.85) 100%
+  );
+  z-index: 2;
+}
+
+/* Centered Scanning Frame */
+.cyber-qr-target-box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 240px;
+  height: 240px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+@media (min-width: 480px) {
+  .cyber-qr-target-box {
+    width: 270px;
+    height: 270px;
+  }
+}
+
+/* 4 Glowing Corner Brackets */
+.cyber-qr-corner {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-color: #00f0ff;
+  border-style: solid;
+  pointer-events: none;
+  filter: drop-shadow(0 0 8px #00f0ff);
+  transition: all 0.25s ease;
+}
+
+.cyber-qr-corner.top-left {
+  top: 0;
+  left: 0;
+  border-width: 3.5px 0 0 3.5px;
+  border-top-left-radius: 12px;
+}
+
+.cyber-qr-corner.top-right {
+  top: 0;
+  right: 0;
+  border-width: 3.5px 3.5px 0 0;
+  border-top-right-radius: 12px;
+}
+
+.cyber-qr-corner.bottom-left {
+  bottom: 0;
+  left: 0;
+  border-width: 0 0 3.5px 3.5px;
+  border-bottom-left-radius: 12px;
+}
+
+.cyber-qr-corner.bottom-right {
+  bottom: 0;
+  right: 0;
+  border-width: 0 3.5px 3.5px 0;
+  border-bottom-right-radius: 12px;
+}
+
+/* Success Detection State: Corners glow vibrant emerald */
+.cyber-qr-target-box.is-success .cyber-qr-corner {
+  border-color: #10b981;
+  filter: drop-shadow(0 0 12px #10b981);
+}
+
+/* Animated Scanning Laser Line */
+.cyber-qr-laser-line {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 240, 255, 0.4) 15%,
+    #00f0ff 50%,
+    rgba(0, 240, 255, 0.4) 85%,
+    transparent 100%
+  );
+  box-shadow: 0 0 14px 2px #00f0ff, 0 0 24px 4px rgba(0, 240, 255, 0.5);
+  animation: cyberLaserSweep 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes cyberLaserSweep {
+  0% {
+    top: 6px;
+    opacity: 0.95;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: calc(100% - 10px);
+    opacity: 0.95;
+  }
+}
+
+/* Instruction Text Badge */
+.cyber-qr-instruction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(12, 16, 42, 0.85);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  color: #e2e8f0;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 14px;
+}
+
+.cyber-qr-instruction-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #00f0ff;
+  box-shadow: 0 0 8px #00f0ff;
+  animation: cyberDotPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes cyberDotPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+}

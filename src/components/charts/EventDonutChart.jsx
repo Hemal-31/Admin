@@ -16,21 +16,21 @@ export default function EventDonutChart({
   const [hoveredIdx, setHoveredIdx] = useState(null);
 
   // Enlarged dimensions for prominence and readability
-  const radius = 88;
-  const strokeWidth = 26;
+  const radius = 84;
+  const strokeWidth = 22;
   const center = 120;
   const circumference = 2 * Math.PI * radius;
 
-  // Ultra-distinct high-contrast color palette (zero adjacent or similar hues)
+  // Ultra-distinct cyber palette tuned to the reference image: royal blue, cyan, pink, violet
   const defaultDistinctColors = [
-    '#00f0ff', // 0: Electric Cyan (~185°)
-    '#f59e0b', // 1: Neon Amber / Gold (~38°)
-    '#a855f7', // 2: Vivid Violet / Purple (~270°)
-    '#10b981', // 3: Emerald Mint Green (~155°)
-    '#ec4899', // 4: Hot Magenta / Pink (~330°)
-    '#3b82f6', // 5: Royal Cobalt Blue (~215°)
-    '#ff5722', // 6: Deep Coral Flame (~14°)
-    '#84cc16', // 7: Electric Lime (~84°)
+    '#38bdf8', // Electric cyan-blue
+    '#2563eb', // Royal blue
+    '#8b5cf6', // Violet
+    '#ec4899', // Hot pink
+    '#f472b6', // Pink glow
+    '#60a5fa', // Light blue
+    '#2dd4bf', // Aqua teal
+    '#c084fc', // Purple accent
   ];
 
   const activeSegments = Array.isArray(segments) ? segments : [];
@@ -60,126 +60,124 @@ export default function EventDonutChart({
   });
 
   return (
-    <div className="w-full">
-      {/* Header with Title, Subtitle, and View Toggles */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <div>
-          <h3 className="text-lg sm:text-xl font-extrabold font-heading text-white tracking-wide">
+    <div
+      className="w-full border border-[#1d2f5c] p-4 sm:p-5"
+      style={{
+        background:
+          'radial-gradient(circle at top, rgba(37,99,235,0.12), transparent 38%), linear-gradient(180deg, rgba(5,10,22,0.95), rgba(9,12,28,0.9))',
+        boxShadow: '0 0 18px rgba(37,99,235,0.12)',
+        borderRadius: '28px',
+      }}
+    >
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex-1 min-w-0 text-left">
+          <h3 className="text-3xl sm:text-4xl lg:text-[2.2rem] font-black font-heading text-white leading-none tracking-tight text-left">
             {title}
           </h3>
           {subtitle && (
-            <p className="text-xs sm:text-sm text-slate-300 mt-0.5 font-medium">{subtitle}</p>
+            <p className="mt-2 text-sm sm:text-lg text-slate-300 font-medium max-w-[440px] leading-snug text-left">
+              {subtitle}
+            </p>
           )}
         </div>
-        {rightElement && (
-          <div className="shrink-0">{rightElement}</div>
-        )}
+        {rightElement && <div className="flex justify-start sm:justify-end">{rightElement}</div>}
       </div>
 
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-2">
-        {/* Prominent Donut Graphic with Distinct Slice Gaps */}
-        <div className="relative w-56 h-56 sm:w-64 sm:h-64 shrink-0 flex items-center justify-center">
-          <svg
-            viewBox="0 0 240 240"
-            className="w-full h-full -rotate-90 transform"
-          >
-            <defs>
-              {renderedSegments.map((seg) => (
-                <filter
-                  key={`filter-${seg.index}`}
-                  id={`donutGlow-${seg.index}`}
-                  x="-30%"
-                  y="-30%"
-                  width="160%"
-                  height="160%"
-                >
-                  <feDropShadow
-                    dx="0"
-                    dy="0"
-                    stdDeviation="5"
-                    floodColor={seg.color}
-                    floodOpacity="0.8"
+      <div className="flex flex-col items-center gap-8 py-3">
+        <div className="flex flex-col items-center justify-center">
+          <div className="relative w-[220px] h-[220px] sm:w-[250px] sm:h-[250px] flex items-center justify-center">
+            <svg viewBox="0 0 240 240" className="w-full h-full -rotate-90 transform">
+              <defs>
+                {renderedSegments.map((seg) => (
+                  <filter
+                    key={`filter-${seg.index}`}
+                    id={`donutGlow-${seg.index}`}
+                    x="-30%"
+                    y="-30%"
+                    width="160%"
+                    height="160%"
+                  >
+                    <feDropShadow
+                      dx="0"
+                      dy="0"
+                      stdDeviation="5"
+                      floodColor={seg.color}
+                      floodOpacity="0.9"
+                    />
+                  </filter>
+                ))}
+              </defs>
+
+              <circle
+                cx={center}
+                cy={center}
+                r={radius}
+                fill="transparent"
+                stroke="rgba(255, 255, 255, 0.06)"
+                strokeWidth={strokeWidth}
+              />
+
+              {renderedSegments.map((seg) => {
+                if (seg.percentage <= 0) return null;
+                const isHovered = hoveredIdx === seg.index;
+                return (
+                  <circle
+                    key={seg.index}
+                    cx={center}
+                    cy={center}
+                    r={radius}
+                    fill="transparent"
+                    stroke={seg.color}
+                    strokeWidth={isHovered ? strokeWidth + 4 : strokeWidth}
+                    strokeDasharray={seg.strokeDasharray}
+                    strokeDashoffset={seg.strokeDashoffset}
+                    strokeLinecap="round"
+                    className="transition-all duration-200 cursor-pointer"
+                    style={{
+                      filter: isHovered
+                        ? `url(#donutGlow-${seg.index}) drop-shadow(0 0 18px ${seg.color})`
+                        : `drop-shadow(0 0 8px ${seg.color}99)`,
+                      opacity: hoveredIdx === null || isHovered ? 1 : 0.55,
+                      transformOrigin: 'center',
+                    }}
+                    onMouseEnter={() => setHoveredIdx(seg.index)}
+                    onMouseLeave={() => setHoveredIdx(null)}
                   />
-                </filter>
-              ))}
-            </defs>
+                );
+              })}
+            </svg>
 
-            {/* Dark Background Track */}
-            <circle
-              cx={center}
-              cy={center}
-              r={radius}
-              fill="transparent"
-              stroke="rgba(255, 255, 255, 0.06)"
-              strokeWidth={strokeWidth}
-            />
-
-            {/* Glowing & Clearly Partitioned Segment Arcs */}
-            {renderedSegments.map((seg) => {
-              if (seg.percentage <= 0) return null;
-              const isHovered = hoveredIdx === seg.index;
-              return (
-                <circle
-                  key={seg.index}
-                  cx={center}
-                  cy={center}
-                  r={radius}
-                  fill="transparent"
-                  stroke={seg.color}
-                  strokeWidth={isHovered ? strokeWidth + 6 : strokeWidth}
-                  strokeDasharray={seg.strokeDasharray}
-                  strokeDashoffset={seg.strokeDashoffset}
-                  strokeLinecap="round"
-                  className="transition-all duration-200 cursor-pointer"
-                  style={{
-                    filter: isHovered
-                      ? `url(#donutGlow-${seg.index}) drop-shadow(0 0 16px ${seg.color})`
-                      : `drop-shadow(0 0 6px ${seg.color}75)`,
-                    opacity: hoveredIdx === null || isHovered ? 1 : 0.45,
-                    transformOrigin: 'center',
-                  }}
-                  onMouseEnter={() => setHoveredIdx(seg.index)}
-                  onMouseLeave={() => setHoveredIdx(null)}
-                />
-              );
-            })}
-          </svg>
-
-          {/* Center Callout: Large, Bold, Elegant, NO annoying hover instruction text */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
-            <span
-              className="text-5xl sm:text-6xl font-black font-heading tracking-tight leading-none transition-colors"
-              style={{
-                color: hoveredIdx !== null ? activeSegments[hoveredIdx]?.color || '#ffffff' : '#ffffff',
-                textShadow: hoveredIdx !== null
-                  ? `0 0 24px ${activeSegments[hoveredIdx]?.color || '#00f0ff'}`
-                  : '0 0 18px rgba(255, 255, 255, 0.45)',
-              }}
-            >
-              {hoveredIdx !== null
-                ? activeSegments[hoveredIdx]?.count
-                : Number(totalCount || 0).toLocaleString()}
-            </span>
-            <span className="text-sm sm:text-base font-black text-slate-200 uppercase tracking-widest mt-2 truncate max-w-[170px]">
-              {hoveredIdx !== null ? activeSegments[hoveredIdx]?.label : totalLabel}
-            </span>
-            {hoveredIdx !== null && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
               <span
-                className="text-xs sm:text-sm font-mono font-black mt-1.5 px-3 py-0.5 rounded-full"
+                className="text-5xl sm:text-6xl font-black font-heading tracking-tight leading-none transition-colors"
                 style={{
-                  color: activeSegments[hoveredIdx]?.color || '#00f0ff',
-                  background: `${activeSegments[hoveredIdx]?.color || '#00f0ff'}30`,
-                  border: `1.5px solid ${activeSegments[hoveredIdx]?.color || '#00f0ff'}80`,
+                  color: hoveredIdx !== null ? activeSegments[hoveredIdx]?.color || '#ffffff' : '#ffffff',
+                  textShadow: hoveredIdx !== null
+                    ? `0 0 24px ${activeSegments[hoveredIdx]?.color || '#38bdf8'}`
+                    : '0 0 18px rgba(130, 170, 255, 0.6)',
                 }}
               >
-                {activeSegments[hoveredIdx]?.percentage}% of total
+                {hoveredIdx !== null
+                  ? activeSegments[hoveredIdx]?.count
+                  : Number(totalCount || 0).toLocaleString()}
               </span>
-            )}
+              <span className="text-[10px] sm:text-[11px] font-black text-slate-200 uppercase tracking-[0.26em] mt-2 truncate max-w-[170px]">
+                {hoveredIdx !== null ? activeSegments[hoveredIdx]?.label : totalLabel}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-3 text-center w-full max-w-[220px]">
+            <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.28em] text-slate-300">
+              Event Breakdown
+            </div>
+            <div className="mt-2 text-base sm:text-lg font-black text-white truncate px-2">
+              {hoveredIdx !== null ? activeSegments[hoveredIdx]?.label : activeSegments[0]?.label || 'No event'}
+            </div>
           </div>
         </div>
 
-        {/* Separated High-Contrast Segment Legend with Larger Bold Text */}
-        <div className="flex-1 w-full space-y-3.5">
+        <div className="w-full max-w-[560px] space-y-2.5">
           {activeSegments.length === 0 ? (
             <div className="py-6 px-4 rounded-xl border border-white/[0.08] bg-white/[0.02] text-base text-slate-300 text-center font-medium">
               No matching registrations recorded yet.
@@ -194,29 +192,26 @@ export default function EventDonutChart({
                   key={idx}
                   onMouseEnter={() => setHoveredIdx(idx)}
                   onMouseLeave={() => setHoveredIdx(null)}
-                  className={`flex items-center justify-between py-3.5 px-4.5 rounded-xl transition-all duration-200 cursor-pointer ${
+                  className={`flex items-center justify-between gap-4 py-3 px-4 rounded-2xl transition-all duration-200 cursor-pointer ${
                     isHovered
-                      ? 'bg-white/10 border shadow-lg translate-x-1'
-                      : 'bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.07]'
+                      ? 'bg-white/[0.08] border border-white/[0.12] shadow-[0_0_18px_rgba(34,211,238,0.12)]'
+                      : 'bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.06]'
                   }`}
                   style={{
                     borderColor: isHovered ? color : 'rgba(255, 255, 255, 0.12)',
-                    boxShadow: isHovered ? `0 0 18px ${color}40` : 'none',
+                    boxShadow: isHovered ? `0 0 22px ${color}20` : 'none',
                   }}
                 >
-                  {/* Left: Distinct Color Box & Larger Bold Label */}
-                  <div className="flex items-center gap-3.5 min-w-0 pr-2">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <span
-                      className="w-4.5 h-4.5 rounded-md shrink-0 transition-transform duration-200 border"
+                      className="w-4 h-4 rounded-full shrink-0"
                       style={{
                         backgroundColor: color,
-                        borderColor: '#ffffff',
                         boxShadow: `0 0 12px ${color}`,
-                        transform: isHovered ? 'scale(1.25)' : 'scale(1)',
                       }}
                     />
                     <span
-                      className={`text-base sm:text-lg font-extrabold truncate transition-colors ${
+                      className={`text-sm sm:text-base font-black truncate transition-colors ${
                         isHovered ? 'text-white' : 'text-slate-100'
                       }`}
                       title={seg.label}
@@ -225,21 +220,20 @@ export default function EventDonutChart({
                     </span>
                   </div>
 
-                  {/* Right: Exact Count & Percentage Badge */}
-                  <div className="flex items-center gap-3.5 shrink-0">
+                  <div className="flex items-center gap-3 shrink-0">
                     <span className="font-mono text-base sm:text-lg text-white font-black">
                       {seg.count}
                     </span>
                     <span
-                      className="font-mono text-xs sm:text-sm font-black px-3 py-1 rounded-lg transition-all"
+                      className="font-mono text-[10px] sm:text-[11px] font-black px-2.5 py-1 rounded-lg min-w-[52px] text-center"
                       style={{
-                        backgroundColor: `${color}30`,
-                        color: color,
-                        border: `1.5px solid ${color}80`,
-                        boxShadow: isHovered ? `0 0 10px ${color}60` : 'none',
+                        background: `${color}22`,
+                        border: `1px solid ${color}80`,
+                        color,
+                        boxShadow: `0 0 12px ${color}20`,
                       }}
                     >
-                      {seg.percentage}%
+                      {Math.round(seg.percentage || 0)}%
                     </span>
                   </div>
                 </div>

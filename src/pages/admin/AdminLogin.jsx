@@ -2,45 +2,153 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { supabase } from '../../config/supabase';
 import { User, Lock, Eye, EyeOff, ArrowRight, Shield } from 'lucide-react';
 import '../Auth.css';
 import './AdminLogin.css';
 
-export default function AdminLogin() {
+export default function AdminLogin({ defaultRole = 'ADMIN' }) {
+  const [role, setRole] = useState(defaultRole);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { loginAdmin, adminLogin } = useAuth();
+  const { loginAdmin, adminLogin, loginCoordinator, coordinatorLogin } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
+
+  const getCredentialErrorToast = (error, emailExists = true) => {
+    const emailValue = (email || '').trim();
+    const passwordValue = password || '';
+    const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue);
+    const passwordLooksMissing = !passwordValue || passwordValue.length < 4;
+
+    if (!emailValue && !passwordValue) {
+      return { title: 'Missing details', message: 'Please enter your email and password.', type: 'error' };
+    }
+
+    if (!emailValue) {
+      return { title: 'Email is wrong', message: 'Please enter a valid email address.', type: 'error' };
+    }
+
+    if (!emailLooksValid) {
+      return { title: 'Email is wrong', message: 'The email entered is incorrect.', type: 'error' };
+    }
+
+    if (!emailExists) {
+      return { title: 'Email is wrong', message: 'This email is not registered in our system.', type: 'error' };
+    }
+
+    if (passwordLooksMissing) {
+      return { title: 'Password is wrong', message: 'Please check the password and try again.', type: 'error' };
+    }
+
+    const msg = (error?.message || '').toLowerCase();
+    if (msg.includes('password')) {
+      return { title: 'Password is wrong', message: 'The password you entered is incorrect.', type: 'error' };
+    }
+
+    if (msg.includes('email') || msg.includes('user') || msg.includes('not found')) {
+      return { title: 'Email is wrong', message: 'This email is not registered in our system.', type: 'error' };
+    }
+
+    return { title: 'Password is wrong', message: 'The password you entered is incorrect.', type: 'error' };
+  };
+
+  const checkEmailExistsForRole = async () => {
+    const emailValue = (email || '').trim();
+    if (!emailValue || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
+      return false;
+    }
+
+    const lowerEmail = emailValue.toLowerCase();
+    const demoAdminEmail = 'admin@cybersentinel.in';
+
+    if (role === 'ADMIN') {
+      if (lowerEmail === demoAdminEmail.toLowerCase()) {
+        return true;
+      }
+
+      try {
+        const { data } = await supabase.from('profiles').select('email').eq('role', 'ADMIN').ilike('email', emailValue);
+        return Boolean(data?.length);
+      } catch {
+        return false;
+      }
+    }
+
+    const knownCoordinatorEmails = [
+      'PP@gmail.com',
+      'paper@gmail.com',
+      'UN@gmail.com',
+      'CC@gmail.com',
+      'WE@gmail.com',
+      'XC@gmail.com',
+      'GD@gmail.com',
+      'SP@gmail.com',
+      'CO@gmail.com',
+      'FTB@gmail.com',
+      'MS@gmail.com',
+      'LIL@gmail.com',
+      'TC@gmail.com',
+    ];
+
+    if (knownCoordinatorEmails.some((known) => known.toLowerCase() === lowerEmail)) {
+      return true;
+    }
+
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('role', 'COORDINATOR')
+        .ilike('email', emailValue);
+      return Boolean(data?.length);
+    } catch {
+      return false;
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
-      addToast('Please enter both email and password', 'error');
+      addToast({
+        title: 'Missing details',
+        message: 'Please enter both email and password.',
+        type: 'error',
+      });
       return;
     }
 
     try {
       setIsLoading(true);
-      const doLogin = loginAdmin || adminLogin;
-      await doLogin(email, password);
-      addToast('Admin authenticated successfully! Welcome back.', 'success');
-      navigate('/admin/dashboard');
-    } catch (err) {
-      console.error('Admin login error:', err);
-      let msg = err.message || 'Invalid administrator credentials';
-      if (msg.toLowerCase().includes('invalid login credentials')) {
-        msg = 'Enter correct email and passwords';
+      const emailExists = await checkEmailExistsForRole();
+      if (!emailExists) {
+        addToast(getCredentialErrorToast(null, false));
+        return;
       }
-      addToast(msg, 'error');
+
+      if (role === 'ADMIN') {
+        const doLogin = loginAdmin || adminLogin;
+        await doLogin(email, password);
+        addToast({ title: 'Welcome back', message: 'Admin authenticated successfully.', type: 'success' });
+        navigate('/admin/dashboard');
+      } else {
+        const doLogin = loginCoordinator || coordinatorLogin;
+        await doLogin(email, password);
+        addToast({ title: 'Welcome back', message: 'Coordinator authenticated successfully.', type: 'success' });
+        navigate('/coordinator/dashboard');
+      }
+    } catch (err) {
+      console.error(`${role} login error:`, err);
+      addToast(getCredentialErrorToast(err, true));
     } finally {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="cyber-login-container">
@@ -62,7 +170,7 @@ export default function AdminLogin() {
               }}
             />
             <div
-              className="cyber-login-crest"
+              className={`cyber-login-crest ${role === 'COORDINATOR' ? 'is-coordinator' : ''}`}
               style={{
                 width: '215px',
                 height: '215px',
@@ -72,9 +180,13 @@ export default function AdminLogin() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 background: '#09071c',
-                border: '3px solid #ec4899',
-                boxShadow: '0 0 35px rgba(236, 72, 153, 0.65), inset 0 0 15px rgba(236, 72, 153, 0.3)',
+                border: `3px solid ${role === 'ADMIN' ? '#ec4899' : '#00f0ff'}`,
+                boxShadow:
+                  role === 'ADMIN'
+                    ? '0 0 35px rgba(236, 72, 153, 0.65), inset 0 0 15px rgba(236, 72, 153, 0.3)'
+                    : '0 0 35px rgba(0, 240, 255, 0.65), inset 0 0 15px rgba(168, 85, 247, 0.3)',
                 overflow: 'hidden',
+                transition: 'all 0.3s ease',
               }}
             >
               <img
@@ -94,10 +206,12 @@ export default function AdminLogin() {
           {/* Titles */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '100%' }}>
             <h1 className="cyber-login-title">
-              ADMIN PORTAL
+              {role === 'ADMIN' ? 'ADMIN PORTAL' : 'COORDINATOR PORTAL'}
             </h1>
             <p className="cyber-login-subtitle">
-              Manage • Verify • Coordinate
+              {role === 'ADMIN'
+                ? 'Manage • Verify • Coordinate'
+                : 'Verify • Supervise • Coordinate'}
             </p>
           </div>
 
@@ -229,28 +343,30 @@ export default function AdminLogin() {
 
             {/* Inner Form Content */}
             <div className="cyber-hud-form-body">
-              {/* Header */}
-              <div style={{ marginBottom: '28px' }}>
+                {/* Header */}
+              <div style={{ marginBottom: '24px' }}>
                 <h2
                   style={{
-                    fontSize: '30px',
+                    fontSize: '28px',
                     fontWeight: 700,
                     fontFamily: 'var(--font-heading)',
-                    color: '#00f0ff',
+                    color: role === 'ADMIN' ? '#00f0ff' : '#00f0ff',
                     letterSpacing: '-0.01em',
                     textShadow: '0 0 20px rgba(0, 240, 255, 0.5)',
                   }}
                 >
-                  Welcome Back
+                  {role === 'ADMIN' ? 'Admin Authentication' : 'Coordinator Access'}
                 </h2>
-                <p style={{ fontSize: '14px', color: '#cbd5e1', marginTop: '6px' }}>
-                  Login to manage CyberSentinel 2K26
+                <p style={{ fontSize: '13.5px', color: '#cbd5e1', marginTop: '6px' }}>
+                  {role === 'ADMIN'
+                    ? 'Enter administrator credentials to proceed'
+                    : 'Enter coordinator credentials to manage assigned events'}
                 </p>
               </div>
 
               {/* Form */}
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {/* Admin ID / Email */}
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                {/* ID / Email */}
                 <div style={{ position: 'relative' }}>
                   <User
                     size={18}
@@ -265,7 +381,7 @@ export default function AdminLogin() {
                   <input
                     type="text"
                     required
-                    placeholder="Admin ID or Email"
+                    placeholder={role === 'ADMIN' ? 'Admin ID or Email' : 'Coordinator Email'}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="cyber-login-input"
@@ -332,7 +448,7 @@ export default function AdminLogin() {
                     <span>Remember me</span>
                   </label>
                   <a
-                    href="mailto:support@cybersentinel.in?subject=Admin%20Password%20Reset%20Request"
+                    href="mailto:support@cybersentinel.in?subject=Password%20Reset%20Request"
                     style={{ color: '#00f0ff', textDecoration: 'none', fontWeight: 500 }}
                     onMouseEnter={(e) => (e.target.style.textDecoration = 'underline')}
                     onMouseLeave={(e) => (e.target.style.textDecoration = 'none')}
@@ -346,9 +462,9 @@ export default function AdminLogin() {
                   type="submit"
                   disabled={isLoading}
                   className="cyber-login-btn"
-                  style={{ marginTop: '10px' }}
+                  style={{ marginTop: '8px' }}
                 >
-                  <span>{isLoading ? 'Authenticating...' : 'LOGIN'}</span>
+                  <span>{isLoading ? 'Authenticating...' : role === 'ADMIN' ? 'LOGIN AS ADMIN' : 'LOGIN AS COORDINATOR'}</span>
                   <ArrowRight size={18} />
                 </button>
               </form>
@@ -356,8 +472,8 @@ export default function AdminLogin() {
               {/* Portal Switchers */}
               <div
                 style={{
-                  marginTop: '28px',
-                  paddingTop: '20px',
+                  marginTop: '24px',
+                  paddingTop: '18px',
                   borderTop: '1px solid rgba(255, 255, 255, 0.08)',
                   textAlign: 'center',
                   display: 'flex',
@@ -365,12 +481,20 @@ export default function AdminLogin() {
                   gap: '8px',
                 }}
               >
-                <Link
-                  to="/coordinator/login"
-                  style={{ fontSize: '13px', color: '#c084fc', textDecoration: 'none', fontWeight: 600 }}
+                <button
+                  type="button"
+                  onClick={() => setRole(role === 'ADMIN' ? 'COORDINATOR' : 'ADMIN')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    color: role === 'ADMIN' ? '#c084fc' : '#38bdf8',
+                    fontWeight: 600,
+                  }}
                 >
-                  Switch to Coordinator Login →
-                </Link>
+                  {role === 'ADMIN' ? 'Switch to Coordinator Portal →' : 'Switch to Admin Portal →'}
+                </button>
                 <Link
                   to="/"
                   style={{ fontSize: '12px', color: '#64748b', textDecoration: 'none' }}
@@ -381,6 +505,7 @@ export default function AdminLogin() {
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

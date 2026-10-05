@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcryptjs';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -23,6 +24,11 @@ const coordinators = [
   { event: 'Lost in Lyrics', code: 'LIL', email: 'LIL@gmail.com', password: 'Cybersentinel@nonLIL', day: 'DAY_2', type: 'TEAM' },
   { event: 'Thiruvizha Corner', code: 'TC', email: 'TC@gmail.com', password: 'Cybersentinel@nonTC', day: 'DAY_2', type: 'TEAM' }
 ];
+
+// pgcrypto's crypt() (used by public.coordinator_login) only verifies $2a$ bcrypt
+// hashes, so the prefix bcryptjs emits must be rewritten before storing.
+const hashPassword = (password) =>
+  bcrypt.hashSync(password, bcrypt.genSaltSync(10)).replace('$2b$', '$2a$');
 
 async function setup() {
   console.log("🚀 Starting Coordinator and Event setup...");
@@ -80,19 +86,30 @@ async function setup() {
     }
 
     if (userId) {
-      // 3. Ensure they have a Profile in the `profiles` table (Fixes the Foreign Key Error)
-      const { data: existingProfile } = await supabase.from('profiles').select('id').eq('id', userId).single();
+// 3. Ensure they have a Profile in the `profiles` table (Fixes the Foreign Key Error)
+      //    coordinator_login authenticates against profiles.password_hash, so the hash must
+      //    be stored here or the account can never log in.
+      const { data: existingProfile } = await supabase.from('profiles').select('id, password_hash').eq('id', userId).maybeSingle();
+
       if (!existingProfile) {
         const { error: profErr } = await supabase.from('profiles').insert({
           id: userId,
           email: c.email,
           name: `${c.code} Coordinator`,
           role: 'COORDINATOR',
-          active: true
+          active: true,
+          password_hash: hashPassword(c.password)
         });
         if (profErr) console.error(`❌ Failed to create profile:`, profErr.message);
+        else console.log(`✅ Created profile with password hash for ${c.email}`);
+      } else if (!existingProfile.password_hash) {
+        const { error: backfillErr } = await supabase
+          .from('profiles')
+          .update({ password_hash: hashPassword(c.password) })
+          .eq('id', userId);
+        if (backfillErr) console.error(`❌ Failed to backfill password hash:`, backfillErr.message);
+        else console.log(`✅ Backfilled missing password hash for ${c.email}`);
       }
-
       // 4. Assign coordinator to the event
       const { data: existingAssignment } = await supabase.from('event_coordinators')
         .select('id').eq('coordinator_user_id', userId).eq('event_id', eventId).single();

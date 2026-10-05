@@ -19,18 +19,22 @@ export default function AdminSettings() {
 
   const [activeTab, setActiveTab] = useState('General');
 
-  // Form states
   const [profileName, setProfileName] = useState(adminProfile?.name || 'Admin');
   const [profileEmail, setProfileEmail] = useState(adminProfile?.email || 'admin@cybersentinel.in');
   const [profileRole, setProfileRole] = useState(adminProfile?.role || 'Super Admin');
 
-  // Toggle settings matching mockup
   const [registrationOpen, setRegistrationOpen] = useState(true);
   const [requireDocUpload, setRequireDocUpload] = useState(false);
   const [autoVerification, setAutoVerification] = useState(true);
   const [sendConfirmationEmail, setSendConfirmationEmail] = useState(true);
+  const [welcomeSubject, setWelcomeSubject] = useState('Welcome to Cyber Sentinel 2K26');
+  const [reminderInterval, setReminderInterval] = useState('24h');
+  const [mfaRequired, setMfaRequired] = useState(true);
+  const [sessionTimeout, setSessionTimeout] = useState('45 minutes');
 
   const [isSaving, setIsSaving] = useState(false);
+
+  const tabs = ['General', 'Events', 'Mail Templates', 'Security'];
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -41,37 +45,9 @@ export default function AdminSettings() {
     }, 600);
   };
 
-  return (
-    <div className="space-y-6 max-w-4xl">
-      {/* Top Header Matching Mockup Screen 4 */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold font-heading text-white tracking-tight">
-          Settings
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          Manage admin preferences
-        </p>
-      </div>
-
-      {/* Tabs Row Matching Mockup */}
-      <div className="flex items-center gap-2 border-b border-white/[0.08] pb-1">
-        {['General', 'Events', 'Mail Templates', 'Security'].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all ${
-              activeTab === tab
-                ? 'bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)]'
-                : 'text-slate-400 hover:text-white bg-white/[0.03]'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      <form onSubmit={handleSave} className="space-y-6">
-        {/* Admin Profile Section */}
+  const renderTabContent = () => {
+    if (activeTab === 'General') {
+      return (
         <div className="glass-card p-6 border-white/[0.08] space-y-4">
           <h2 className="text-base font-bold font-heading text-white tracking-wide border-b border-white/[0.06] pb-3">
             Admin Profile
@@ -115,15 +91,17 @@ export default function AdminSettings() {
             </div>
           </div>
         </div>
+      );
+    }
 
-        {/* Event Settings with Mockup Toggles */}
+    if (activeTab === 'Events') {
+      return (
         <div className="glass-card p-6 border-white/[0.08] space-y-4">
           <h2 className="text-base font-bold font-heading text-white tracking-wide border-b border-white/[0.06] pb-3">
             Event Settings
           </h2>
 
           <div className="space-y-5 text-xs">
-            {/* Toggle 1: Registration Open */}
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-semibold text-white">Registration Open</div>
@@ -141,7 +119,6 @@ export default function AdminSettings() {
               </label>
             </div>
 
-            {/* Toggle 2: Require Document Upload */}
             <div className="flex items-center justify-between pt-3 border-t border-white/[0.04]">
               <div>
                 <div className="font-semibold text-white">Require Document Upload</div>
@@ -159,14 +136,11 @@ export default function AdminSettings() {
               </label>
             </div>
 
-            {/* Toggle 3: Auto Verification for College Mail IDs */}
             <div className="flex items-center justify-between pt-3 border-t border-white/[0.04]">
               <div>
-                <div className="font-semibold text-white">
-                  Auto Verification for College Mail IDs
-                </div>
+                <div className="font-semibold text-white">Auto Verification for College Mail IDs</div>
                 <div className="text-slate-500 mt-0.5">
-                  Automatically verify registrations originating from official partner domains
+                  Automatically verify registrations from official partner domains
                 </div>
               </div>
               <label className="cyber-switch shrink-0">
@@ -179,7 +153,6 @@ export default function AdminSettings() {
               </label>
             </div>
 
-            {/* Toggle 4: Send Confirmation Email */}
             <div className="flex items-center justify-between pt-3 border-t border-white/[0.04]">
               <div>
                 <div className="font-semibold text-white">Send Confirmation Email</div>
@@ -198,14 +171,126 @@ export default function AdminSettings() {
             </div>
           </div>
         </div>
+      );
+    }
 
-        {/* Save Button Matching Mockup */}
-        <div className="flex justify-end pt-2">
+    if (activeTab === 'Mail Templates') {
+      return (
+        <div className="glass-card p-6 border-white/[0.08] space-y-4">
+          <h2 className="text-base font-bold font-heading text-white tracking-wide border-b border-white/[0.06] pb-3">
+            Mail Templates
+          </h2>
+
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-slate-400 font-medium">Welcome subject</label>
+                <input
+                  type="text"
+                  value={welcomeSubject}
+                  onChange={(e) => setWelcomeSubject(e.target.value)}
+                  className="cyber-input w-full text-xs"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-slate-400 font-medium">Reminder cadence</label>
+                <select
+                  value={reminderInterval}
+                  onChange={(e) => setReminderInterval(e.target.value)}
+                  className="cyber-input w-full text-xs"
+                >
+                  <option value="12h">12 hours</option>
+                  <option value="24h">24 hours</option>
+                  <option value="48h">48 hours</option>
+                  <option value="72h">72 hours</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/[0.08] bg-slate-950/50 p-4 text-slate-300">
+              <div className="text-[10px] uppercase tracking-[0.24em] text-brand-cyan">Preview</div>
+              <div className="mt-3 text-white font-semibold">{welcomeSubject}</div>
+              <p className="mt-2 text-slate-400">
+                Hello team, your Cyber Sentinel registration is confirmed. We will send the next reminder in{' '}
+                <span className="text-brand-cyan">{reminderInterval}</span>.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="glass-card p-6 border-white/[0.08] space-y-4">
+        <h2 className="text-base font-bold font-heading text-white tracking-wide border-b border-white/[0.06] pb-3">
+          Security
+        </h2>
+
+        <div className="space-y-5 text-xs">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-semibold text-white">Require MFA</div>
+              <div className="text-slate-500 mt-0.5">Enforce multi-factor verification for privileged admin access</div>
+            </div>
+            <label className="cyber-switch shrink-0">
+              <input type="checkbox" checked={mfaRequired} onChange={(e) => setMfaRequired(e.target.checked)} />
+              <span className="cyber-slider"></span>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t border-white/[0.04]">
+            <div>
+              <div className="font-semibold text-white">Session timeout</div>
+              <div className="text-slate-500 mt-0.5">Automatically sign out inactive administrators after a set duration</div>
+            </div>
+            <select
+              value={sessionTimeout}
+              onChange={(e) => setSessionTimeout(e.target.value)}
+              className="cyber-input text-xs min-w-[140px]"
+            >
+              <option value="15 minutes">15 minutes</option>
+              <option value="30 minutes">30 minutes</option>
+              <option value="45 minutes">45 minutes</option>
+              <option value="60 minutes">60 minutes</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6 max-w-4xl">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-extrabold font-heading text-white tracking-tight">
+          Settings
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-400 mt-1">Manage admin preferences</p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.08] pb-1">
+        {tabs.map((tab) => (
           <button
-            type="submit"
-            disabled={isSaving}
-            className="btn-cyber-login text-xs py-2.5 px-8"
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all ${
+              activeTab === tab
+                ? 'bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)]'
+                : 'text-slate-400 hover:text-white bg-white/[0.03]'
+            }`}
           >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      <form onSubmit={handleSave} className="space-y-6">
+        {renderTabContent()}
+
+        <div className="flex justify-end pt-2">
+          <button type="submit" disabled={isSaving} className="btn-cyber-login text-xs py-2.5 px-8">
             <Save className="w-4 h-4" />
             <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
           </button>

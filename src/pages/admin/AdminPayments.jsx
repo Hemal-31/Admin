@@ -1,27 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import {
-  getPayments,
-  verifyPayment,
-  rejectPayment,
-} from '../../services/adminService';
+import { getPayments } from '../../services/adminService';
 import { subscribeToRealtimeUpdates } from '../../utils/statusStore';
-import { StatusBadge } from '../../components/ui/StatusBadge';
 import { DetailsModal } from '../../components/common/DetailsModal';
-import { ImagePreviewModal } from '../../components/common/ImagePreviewModal';
-import ActionConfirmModal from '../../components/common/ActionConfirmModal';
-import { formatCurrency, openGmailCompose } from '../../utils/helpers';
+import { formatCurrency } from '../../utils/helpers';
 import {
   Search,
-  Check,
-  X,
-  Send,
   Eye,
   RefreshCw,
-  ImageIcon,
-  Filter,
+  Check,
+  Clock,
+  X,
+  Mail,
 } from 'lucide-react';
+
+const buildPendingPaymentGmailLink = (email, participantName = 'Participant') => {
+  const subject = 'Payment Pending - Complete Your Registration';
+  const body = [
+    `Hello ${participantName || 'Participant'},`,
+    '',
+    'Your payment has not been completed yet. Kindly complete it to finalize your registration.',
+    'Welcome to our event. You have already registered, but your payment has not yet been completed. Kindly pay the required amount to enroll in our event.',
+    '',
+    'Thank you,',
+    'Cyber Sentinel Team',
+  ].join('\n');
+
+  const to = email || '';
+  return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+};
 
 export function AdminPayments() {
   const { adminProfile } = useAuth();
@@ -33,17 +41,6 @@ export function AdminPayments() {
   const [search, setSearch] = useState('');
 
   const [activeDetails, setActiveDetails] = useState(null);
-  const [previewImage, setPreviewImage] = useState(null);
-
-  const [confirmModalConfig, setConfirmModalConfig] = useState({
-    isOpen: false,
-    title: '',
-    message: '',
-    type: 'confirm',
-    confirmText: 'Confirm',
-    isDanger: false,
-    onConfirm: () => {},
-  });
 
   async function load() {
     setIsLoading(true);
@@ -68,104 +65,6 @@ export function AdminPayments() {
     });
     return () => unsubscribe();
   }, [statusFilter]);
-
-  function handleVerify(registrationId) {
-    setConfirmModalConfig({
-      isOpen: true,
-      title: 'Verify Payment',
-      message: 'Verify this payment and activate event access?',
-      type: 'confirm',
-      confirmText: 'Verify',
-      isDanger: false,
-      onConfirm: async () => {
-        setConfirmModalConfig((prev) => ({ ...prev, isOpen: false }));
-        try {
-          await verifyPayment(registrationId, adminProfile?.id || null);
-          addToast({
-            title: 'Payment Verified',
-            message: 'Registration confirmed and verified entry QR pass generated.',
-            type: 'success',
-          });
-          load();
-        } catch (err) {
-          addToast({
-            title: 'Verification Failed',
-            message: err.message || 'Action completed with status sync.',
-            type: 'error',
-          });
-        }
-      },
-    });
-  }
-
-  function handleReject(registrationId) {
-    setConfirmModalConfig({
-      isOpen: true,
-      title: 'Reject Payment',
-      message: 'Enter reason for payment rejection:',
-      type: 'prompt',
-      confirmText: 'Reject',
-      isDanger: true,
-      onConfirm: async (reason) => {
-        setConfirmModalConfig((prev) => ({ ...prev, isOpen: false }));
-        const finalReason = reason || 'Rejected by administrator';
-        if (!finalReason.trim()) return;
-
-        try {
-          await rejectPayment(registrationId, finalReason.trim(), adminProfile?.id || null);
-          addToast({
-            title: 'Payment Rejected',
-            message: 'Payment flagged as rejected.',
-            type: 'info',
-          });
-          load();
-        } catch (err) {
-          addToast({
-            title: 'Rejection Failed',
-            message: err.message || 'Action completed with status sync.',
-            type: 'error',
-          });
-        }
-      },
-    });
-  }
-
-  function handleSendConfirmation(payment) {
-    const r = payment.registrations || {};
-    const p = r.participants || {};
-    const qrPassUrl = `${window.location.origin}/verify/qr/${r.qr_token || ''}`;
-
-    const subject = `Cyber Sentinel registration confirmed - ${r.registration_code}`;
-    const body = `Dear ${p.name},
-
-Your payment has been verified and your Cyber Sentinel registration is confirmed.
-
-Registration ID: ${r.registration_code}
-Registered Day:  ${r.selected_day}
-College:         ${p.college}
-Department:      ${p.department || 'Not provided'}
-Year:            ${p.year || 'Not provided'}
-Amount Paid:     ₹${Number(payment.amount).toFixed(2)}
-
-Official QR Pass: ${qrPassUrl}
-
-Please present this QR pass at the event entry desk.
-
-Regards,
-Cyber Sentinel 2K26 Team`;
-
-    openGmailCompose({
-      to: p.email,
-      subject,
-      body,
-    });
-
-    addToast({
-      title: 'Gmail Compose Opened',
-      message: `Draft created for ${p.email}.`,
-      type: 'info',
-    });
-  }
 
   const filtered = payments.filter((p) => {
     const reg = p.registrations || {};
@@ -192,9 +91,9 @@ Cyber Sentinel 2K26 Team`;
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 style={{ fontSize: '1.9rem', marginBottom: '6px' }}>Payment Verification</h1>
+          <h1 style={{ fontSize: '1.9rem', marginBottom: '6px' }}>Payments</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Inspect UPI screenshots, verify UTR numbers, and grant official symposium entry passes.
+            Monitor payment status and view transaction details as they are updated automatically.
           </p>
         </div>
         <button
@@ -225,7 +124,7 @@ Cyber Sentinel 2K26 Team`;
             type="text"
             className="form-input"
             style={{ width: '100%', paddingLeft: '48px', minHeight: '56px', fontSize: '15px', fontWeight: 600 }}
-            placeholder="Search code, participant, email, UTR, event..."
+            placeholder="Search code, participant, email, transaction ID, event..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -254,8 +153,7 @@ Cyber Sentinel 2K26 Team`;
               <th style={{ fontSize: '0.92rem', padding: '18px 22px' }}>Registration</th>
               <th style={{ fontSize: '0.92rem', padding: '18px 22px' }}>Participant</th>
               <th style={{ fontSize: '0.92rem', padding: '18px 22px' }}>Amount</th>
-              <th style={{ fontSize: '0.92rem', padding: '18px 22px' }}>UTR</th>
-              <th style={{ fontSize: '0.92rem', padding: '18px 22px' }}>Proof</th>
+              <th style={{ fontSize: '0.92rem', padding: '18px 22px' }}>Transaction ID</th>
               <th style={{ fontSize: '0.92rem', padding: '18px 22px' }}>Status</th>
               <th style={{ fontSize: '0.92rem', padding: '18px 22px' }}>Actions</th>
             </tr>
@@ -293,41 +191,79 @@ Cyber Sentinel 2K26 Team`;
                     </td>
 
                     <td style={{ padding: '18px 22px', fontFamily: 'var(--font-mono)', fontSize: '1rem', fontWeight: 700, color: '#f1f5f9' }}>
-                      {p.utr || '—'}
+                      {p.transaction_id || p.utr || '—'}
                     </td>
 
-                    <td>
-                      {p.screenshot_url ? (
-                        <button
-                          type="button"
-                          onClick={() => setPreviewImage(p.screenshot_url)}
+                    <td style={{ padding: '18px 22px' }}>
+                      {p.status === 'VERIFIED' ? (
+                        <span
                           style={{
-                            background: 'transparent',
-                            padding: 0,
-                            borderRadius: '6px',
-                            overflow: 'hidden',
-                            border: '1px solid var(--border-light)',
-                            display: 'flex',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 14px',
+                            borderRadius: '999px',
+                            fontSize: '0.85rem',
+                            fontWeight: 800,
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            color: '#10b981',
+                            border: '1px solid rgba(16, 185, 129, 0.4)',
                           }}
-                          title="Click to view full screenshot proof"
                         >
-                          <img
-                            src={p.screenshot_url}
-                            alt="Payment Proof"
-                            style={{ width: '90px', height: '54px', objectFit: 'cover' }}
-                          />
-                        </button>
+                          <Check size={14} /> Completed
+                        </span>
+                      ) : p.status === 'REJECTED' ? (
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 14px',
+                            borderRadius: '999px',
+                            fontSize: '0.85rem',
+                            fontWeight: 800,
+                            background: 'rgba(244, 63, 94, 0.15)',
+                            color: '#f43f5e',
+                            border: '1px solid rgba(244, 63, 94, 0.4)',
+                          }}
+                        >
+                          <X size={14} /> Not Completed
+                        </span>
                       ) : (
-                        <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>No proof</span>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 14px',
+                            borderRadius: '999px',
+                            fontSize: '0.85rem',
+                            fontWeight: 800,
+                            background: 'rgba(245, 158, 11, 0.15)',
+                            color: '#f59e0b',
+                            border: '1px solid rgba(245, 158, 11, 0.4)',
+                          }}
+                        >
+                          <Clock size={14} /> Pending Payment
+                        </span>
                       )}
-                    </td>
-
-                    <td>
-                      <StatusBadge status={p.status} />
                     </td>
 
                     <td style={{ padding: '18px 22px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        {!['VERIFIED', 'REJECTED'].includes(p.status) && part.email ? (
+                          <a
+                            href={buildPendingPaymentGmailLink(part.email, part.name)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-secondary"
+                            style={{ padding: '9px 13px', fontSize: '0.92rem', background: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.5)', color: '#fbbf24' }}
+                            title="Email participant"
+                          >
+                            <Mail size={16} />
+                            Email
+                          </a>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => setActiveDetails(p)}
@@ -337,42 +273,6 @@ Cyber Sentinel 2K26 Team`;
                         >
                           <Eye size={16} />
                         </button>
-
-                        {p.status !== 'VERIFIED' && (
-                          <button
-                            type="button"
-                            onClick={() => handleVerify(p.registration_id)}
-                            className="btn btn-primary"
-                            style={{ padding: '9px 14px', fontSize: '0.92rem', fontWeight: 700 }}
-                            title="Verify Payment"
-                          >
-                            <Check size={16} /> Verify
-                          </button>
-                        )}
-
-                        {p.status !== 'REJECTED' && (
-                          <button
-                            type="button"
-                            onClick={() => handleReject(p.registration_id)}
-                            className="btn btn-danger"
-                            style={{ padding: '9px 14px', fontSize: '0.92rem', fontWeight: 700 }}
-                            title="Reject Payment"
-                          >
-                            <X size={16} /> Reject
-                          </button>
-                        )}
-
-                        {p.status === 'VERIFIED' && (
-                          <button
-                            type="button"
-                            onClick={() => handleSendConfirmation(p)}
-                            className="btn btn-secondary"
-                            style={{ padding: '9px 14px', fontSize: '0.92rem', fontWeight: 700, color: '#38bdf8' }}
-                            title="Send Gmail Confirmation"
-                          >
-                            <Send size={16} /> Email
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -397,18 +297,6 @@ Cyber Sentinel 2K26 Team`;
         data={activeDetails}
       />
 
-      {/* Image Preview Lightbox */}
-      <ImagePreviewModal
-        isOpen={Boolean(previewImage)}
-        onClose={() => setPreviewImage(null)}
-        imageUrl={previewImage}
-      />
-
-      {/* Action Confirm Modal */}
-      <ActionConfirmModal
-        {...confirmModalConfig}
-        onClose={() => setConfirmModalConfig((prev) => ({ ...prev, isOpen: false }))}
-      />
     </div>
   );
 }

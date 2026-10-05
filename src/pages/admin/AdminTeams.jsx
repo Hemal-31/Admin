@@ -4,7 +4,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Modal } from '../../components/common/Modal';
 import { DetailsModal } from '../../components/common/DetailsModal';
 import { useToast } from '../../context/ToastContext';
-import { Users2, Plus, Eye, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Users2, Plus, Eye, RefreshCw, ShieldCheck, Phone, Mail, Crown, User } from 'lucide-react';
 
 export function AdminTeams() {
   const { addToast } = useToast();
@@ -113,47 +113,121 @@ export function AdminTeams() {
         <table>
           <thead>
             <tr>
-              <th>Team Code</th>
-              <th>Team Name</th>
-              <th>Event</th>
-              <th>Leader CS ID</th>
-              <th>Members</th>
-              <th>Status</th>
-              <th>Action</th>
+              <th style={{ minWidth: '140px' }}>Team Info</th>
+              <th style={{ minWidth: '160px' }}>Event</th>
+              <th style={{ minWidth: '320px' }}>Team Participants (Phone & Email)</th>
+              <th style={{ minWidth: '100px' }}>Members</th>
+              <th style={{ minWidth: '110px' }}>Status</th>
+              <th style={{ minWidth: '90px', textAlign: 'right' }}>Action</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan="7" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
+                <td colSpan="6" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
                   Loading teams...
                 </td>
               </tr>
             ) : teams.length ? (
               teams.map((t) => (
                 <tr key={t.id || t.team_code}>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--accent-cyan)' }}>
-                    {t.team_code}
-                  </td>
                   <td>
-                    <strong style={{ color: 'var(--text-main)' }}>{t.team_name}</strong>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1rem', color: 'var(--accent-cyan)' }}>
+                      #{t.team_code}
+                    </div>
+                    <strong style={{ color: '#ffffff', fontSize: '1.05rem', display: 'block', marginTop: '2px' }}>
+                      {t.team_name}
+                    </strong>
                   </td>
-                  <td style={{ color: 'var(--text-muted)' }}>{t.event_name || '—'}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>
-                    {t.team_leader_registration_code || '—'}
-                  </td>
+
                   <td>
-                    <span style={{ fontWeight: 600 }}>{t.current_members || 0}</span> / {t.max_members}
+                    <span className="badge-outline" style={{ fontSize: '0.8rem', color: '#93c5fd' }}>
+                      {t.event_name || '—'}
+                    </span>
                   </td>
+
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {t.team_members && t.team_members.length > 0 ? (
+                        t.team_members.map((m, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              background: m.role === 'LEADER' ? 'rgba(0, 240, 255, 0.08)' : 'rgba(255, 255, 255, 0.04)',
+                              border: m.role === 'LEADER' ? '1px solid rgba(0, 240, 255, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                              {m.role === 'LEADER' ? (
+                                <Crown size={14} color="#f59e0b" />
+                              ) : (
+                                <User size={14} color="#94a3b8" />
+                              )}
+                              <strong style={{ color: '#ffffff', fontSize: '0.92rem' }}>{m.name || 'Participant'}</strong>
+                              <span
+                                style={{
+                                  fontSize: '0.72rem',
+                                  fontWeight: 800,
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  background: m.role === 'LEADER' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(148, 163, 184, 0.15)',
+                                  color: m.role === 'LEADER' ? '#fbbf24' : '#cbd5e1',
+                                }}
+                              >
+                                {m.role || 'MEMBER'}
+                              </span>
+                              {m.cs_id && (
+                                <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: '#00f0ff' }}>
+                                  ({m.cs_id})
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '0.82rem', color: '#cbd5e1' }}>
+                              {m.phone && (
+                                <a
+                                  href={`tel:${m.phone}`}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#38bdf8', textDecoration: 'none' }}
+                                  title="Call phone"
+                                >
+                                  <Phone size={12} /> {m.phone}
+                                </a>
+                              )}
+                              {m.email && (
+                                <a
+                                  href={`mailto:${m.email}`}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#a78bfa', textDecoration: 'none' }}
+                                  title="Send email"
+                                >
+                                  <Mail size={12} /> {m.email}
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                          {t.team_leader_registration_code ? `Leader: ${t.team_leader_registration_code}` : 'No participants registered yet'}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+
+                  <td>
+                    <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t.current_members || 0}</span> / {t.max_members}
+                  </td>
+
                   <td>
                     <StatusBadge status={t.status} />
                   </td>
-                  <td>
+
+                  <td style={{ textAlign: 'right' }}>
                     <button
                       type="button"
                       onClick={() => setActiveDetails(t)}
                       className="btn btn-secondary"
-                      style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                      style={{ padding: '7px 14px', fontSize: '0.85rem' }}
                     >
                       <Eye size={14} /> View
                     </button>
@@ -162,7 +236,7 @@ export function AdminTeams() {
               ))
             ) : (
               <tr>
-                <td colSpan="7" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-dim)' }}>
+                <td colSpan="6" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-dim)' }}>
                   No teams registered.
                 </td>
               </tr>

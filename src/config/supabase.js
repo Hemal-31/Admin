@@ -1,7 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+export const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL || 'https://rkmzrgektehctcozagnk.supabase.co';
+export const SUPABASE_ANON_KEY =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrbXpyZ2VrdGVoY3Rjb3phZ25rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MzQ5MzEsImV4cCI6MjEwNTAxMDkzMX0.fL3cLacrVLuGuxXsX5mOQ_aZHhEZFMlGnbVo-5eF3qA';
 
 // Base public client (for public operations & Admin Supabase Auth)
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -13,6 +16,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 // Coordinator dynamic client constructor with x-coordinator-token header support
+// Exactly matching CS-backend-new2/CoOrd/js/supabase.js and Supabase current_actor_id() SQL
 export function getCoordinatorClient(token) {
   const coordinatorToken =
     token ||
@@ -30,7 +34,8 @@ export function getCoordinatorClient(token) {
       persistSession: false,
     },
     global: {
-      headers: coordinatorToken ? { Authorization: `Bearer ${coordinatorToken}` } : {},
+      headers: coordinatorToken ? { 'x-coordinator-token': coordinatorToken } : {},
     },
   });
 }
+

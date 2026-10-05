@@ -56,10 +56,9 @@ export default function CoordinatorLayout() {
   const navLinks = [
     { to: '/coordinator/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/coordinator/participants', label: 'Participants', icon: Users },
-    { to: '/coordinator/payments', label: 'Verification', icon: CreditCard },
+    { to: '/coordinator/payments', label: 'Payments', icon: CreditCard },
     { to: '/coordinator/teams', label: 'Teams', icon: Users2 },
     { to: '/coordinator/attendance', label: 'Attendance Scanner', icon: UserCheck },
-    { to: '/coordinator/announcements', label: 'Announcements', icon: Megaphone },
     { to: '/coordinator/emails', label: 'Emails', icon: Mail },
     { to: '/coordinator/reports', label: 'Reports', icon: FileSpreadsheet },
   ];
@@ -119,7 +118,7 @@ export default function CoordinatorLayout() {
                 to={item.to}
                 end={item.to === '/coordinator/dashboard'}
                 onClick={() => setSidebarOpen(false)}
-                className={({ isActive }) => `cs-sidebar-nav-item ${isActive ? 'active' : ''}`}
+                className={({ isActive }) => `cs-sidebar-nav-item cs-nav-module ${isActive ? 'active' : ''}`}
               >
                 <Icon className="cs-nav-icon" />
                 <span>{item.label}</span>
@@ -129,23 +128,21 @@ export default function CoordinatorLayout() {
         </div>
 
         {/* Identity, Portal Hub Link & Logout */}
-        <div className="cs-sidebar-footer space-y-1">
-          <div className="cs-coord-id">
+        <div className="cs-sidebar-footer">
+          <div className="cs-coord-id cs-nav-module">
             <span className="cs-coord-avatar">{initial}</span>
-            <span style={{ minWidth: 0 }}>
-              <span className="block truncate text-[13px] font-bold text-white leading-tight">{coordName}</span>
-              <span className="block font-mono text-[10px] uppercase tracking-[0.18em] text-brand-cyan">
-                Coordinator
-              </span>
+            <span className="cs-coord-meta">
+              <span className="cs-coord-name">{coordName}</span>
+              <span className="cs-coord-role">Coordinator</span>
             </span>
           </div>
 
-          <Link to="/" target="_blank" className="cs-sidebar-nav-item w-full">
+          <Link to="/" target="_blank" className="cs-sidebar-nav-item cs-nav-module w-full">
             <ExternalLink className="cs-nav-icon" />
             <span>Public Portal</span>
           </Link>
 
-          <button onClick={handleLogout} className="cs-sidebar-nav-item cs-nav-danger w-full">
+          <button onClick={handleLogout} className="cs-sidebar-nav-item cs-nav-module cs-nav-danger w-full">
             <LogOut className="cs-nav-icon" />
             <span>Logout</span>
           </button>
@@ -186,9 +183,9 @@ export default function CoordinatorLayout() {
             >
               <span className="cs-event-rule" aria-hidden="true"></span>
               <Diamond className="cs-event-diamond w-3.5 h-3.5" aria-hidden="true" />
-            <span className="cs-event-title-text">
-              {eventsLoading ? 'Syncing Scope' : primaryEventName || 'Unassigned Scope'}
-            </span>
+              <span className="cs-event-title-text">
+                {eventsLoading ? 'Syncing Scope' : primaryEventName || 'Unassigned Scope'}
+              </span>
               {assignedEvents.length > 1 && (
                 <span className="cs-event-count">+{assignedEvents.length - 1}</span>
               )}

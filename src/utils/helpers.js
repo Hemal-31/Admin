@@ -35,13 +35,30 @@ export function extractQrToken(value) {
   }
 }
 
-export function openGmailCompose({ to = '', bcc = [], subject = '', body = '' }) {
+export function openGmailCompose(optionsOrTo = {}, subjectArg = '', bodyArg = '', bccArg = []) {
+  let to = '';
+  let bcc = [];
+  let subject = '';
+  let body = '';
+
+  if (typeof optionsOrTo === 'object' && optionsOrTo !== null && !Array.isArray(optionsOrTo)) {
+    to = optionsOrTo.to || '';
+    bcc = optionsOrTo.bcc || [];
+    subject = optionsOrTo.subject || '';
+    body = optionsOrTo.body || '';
+  } else {
+    to = typeof optionsOrTo === 'string' ? optionsOrTo : '';
+    subject = subjectArg || '';
+    body = bodyArg || '';
+    bcc = bccArg || [];
+  }
+
   const url = new URL('https://mail.google.com/mail/');
   url.searchParams.set('view', 'cm');
   url.searchParams.set('fs', '1');
   if (to) url.searchParams.set('to', to);
-  if (bcc && bcc.length) {
-    url.searchParams.set('bcc', Array.isArray(bcc) ? bcc.join(',') : bcc);
+  if (bcc && (Array.isArray(bcc) ? bcc.length > 0 : String(bcc).trim())) {
+    url.searchParams.set('bcc', Array.isArray(bcc) ? bcc.filter(Boolean).join(',') : String(bcc).trim());
   }
   if (subject) url.searchParams.set('su', subject);
   if (body) url.searchParams.set('body', body);

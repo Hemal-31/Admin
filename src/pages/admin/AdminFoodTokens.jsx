@@ -49,12 +49,13 @@ export function AdminFoodTokens() {
     }
   }
 
-  async function handleManualLookup(e) {
-    e.preventDefault();
-    if (!manualCode.trim()) return;
+  async function handleManualLookup(e, codeOverride) {
+    if (e?.preventDefault) e.preventDefault();
+    const lookupCode = (codeOverride || manualCode || '').trim();
+    if (!lookupCode) return;
 
     try {
-      const reg = await getRegistrationByCode(manualCode.trim());
+      const reg = await getRegistrationByCode(lookupCode);
       if (!reg || !reg.qr_token) throw new Error('Registration ID not found.');
       handleInspect(reg.qr_token);
     } catch (err) {
@@ -141,7 +142,10 @@ export function AdminFoodTokens() {
       <QrScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
-        onScan={({ qrToken }) => handleInspect(qrToken)}
+        onScan={({ qrToken, registrationCode }) => {
+          if (qrToken) handleInspect(qrToken);
+          else if (registrationCode) handleManualLookup(null, registrationCode);
+        }}
         title="Scan Participant Pass for Meal Token"
       />
 

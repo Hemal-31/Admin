@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   getCoordinators,
   createCoordinator,
+  deleteCoordinator,
   assignEventToCoordinator,
   getEvents,
   getAdminSpecialEvents,
@@ -10,7 +11,7 @@ import { Modal } from '../../components/common/Modal';
 import { DetailsModal } from '../../components/common/DetailsModal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { useToast } from '../../context/ToastContext';
-import { UserPlus, UserCheck, Plus, Eye, RefreshCw, KeyRound } from 'lucide-react';
+import { UserPlus, UserCheck, Plus, Eye, EyeOff, RefreshCw, KeyRound } from 'lucide-react';
 
 export function AdminCoordinators() {
   const { addToast } = useToast();
@@ -27,7 +28,8 @@ export function AdminCoordinators() {
   const [activeDetails, setActiveDetails] = useState(null);
 
   // New coordinator form
-  const [newCoord, setNewCoord] = useState({ name: '', email: '', password: '' });
+  const [newCoord, setNewCoord] = useState({ name: '', email: '', password: '', assignmentValue: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function load() {
@@ -62,15 +64,24 @@ export function AdminCoordinators() {
 
     setIsSubmitting(true);
     try {
-      await createCoordinator(newCoord.name, newCoord.email, newCoord.password);
+      const createdCoordinatorId = await createCoordinator(newCoord.name, newCoord.email, newCoord.password);
+
+      if (newCoord.assignmentValue && createdCoordinatorId) {
+        await assignEventToCoordinator({
+          coordinatorId: createdCoordinatorId,
+          assignmentValue: newCoord.assignmentValue,
+        });
+      }
+
       addToast({
         title: 'Coordinator Created',
-        message: `Account created for ${newCoord.name}.`,
+        message: `Account created for ${newCoord.name}${newCoord.assignmentValue ? ' and event assigned.' : '.'}`,
         type: 'success',
       });
       setIsAddModalOpen(false);
-      setNewCoord({ name: '', email: '', password: '' });
-      load();
+      setNewCoord({ name: '', email: '', password: '', assignmentValue: '' });
+      setShowPassword(false);
+      await load();
     } catch (err) {
       addToast({
         title: 'Failed to Create',
@@ -112,6 +123,26 @@ export function AdminCoordinators() {
     }
   }
 
+  async function handleRemoveCoordinator(coord) {
+    if (!coord) return;
+
+    try {
+      await deleteCoordinator(coord.id);
+      addToast({
+        title: 'Coordinator Removed',
+        message: `${coord.name} was deleted from the database.`,
+        type: 'success',
+      });
+      await load();
+    } catch (err) {
+      addToast({
+        title: 'Remove Failed',
+        message: err.message || 'Could not remove coordinator from the database.',
+        type: 'error',
+      });
+    }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Header */}
@@ -122,9 +153,23 @@ export function AdminCoordinators() {
             Manage coordinator staff accounts and assign responsibility for specific technical or special events.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button type="button" onClick={load} disabled={isLoading} className="btn btn-secondary">
             <RefreshCw size={16} className={isLoading ? 'spin' : ''} />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!coordinators.length) {
+                addToast({ title: 'No Coordinator', message: 'There is no coordinator to remove.', type: 'warning' });
+                return;
+              }
+              handleRemoveCoordinator(coordinators[0]);
+            }}
+            className="btn btn-secondary"
+            style={{ fontSize: '0.88rem', borderColor: 'rgba(239, 68, 68, 0.45)', color: '#fecaca' }}
+          >
+            Remove Coordinator
           </button>
           <button
             type="button"
@@ -217,6 +262,14 @@ export function AdminCoordinators() {
                       >
                         <Eye size={14} />
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCoordinator(c)}
+                        className="btn btn-secondary"
+                        style={{ padding: '6px 10px', fontSize: '0.8rem', borderColor: 'rgba(239, 68, 68, 0.45)', color: '#fecaca' }}
+                      >
+                        Remove
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -261,15 +314,63 @@ export function AdminCoordinators() {
 
           <div className="form-group">
             <label className="form-label">Password *</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              className="form-input"
-              placeholder="Minimum 6 characters"
-              value={newCoord.password}
-              onChange={(e) => setNewCoord({ ...newCoord, password: e.target.value })}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={6}
+                className="form-input"
+                style={{ paddingRight: '42px' }}
+                placeholder="Minimum 6 characters"
+                value={newCoord.password}
+                onChange={(e) => setNewCoord({ ...newCoord, password: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Assign Event (Optional)</label>
+            <select
+              className="form-select"
+              value={newCoord.assignmentValue}
+              onChange={(e) => setNewCoord({ ...newCoord, assignmentValue: e.target.value })}
+            >
+              <option value="">No event assigned</option>
+              <optgroup label="Standard Symposium Events">
+                {allEvents.map((evt) => (
+                  <option key={evt.id} value={`EVENT:${evt.id}`}>
+                    {evt.code} - {evt.name} ({evt.day})
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Special Events">
+                {specialEvents.map((evt) => (
+                  <option key={evt.id} value={`SPECIAL:${evt.id}`}>
+                    Special ({evt.code} - {evt.name})
+                  </option>
+                ))}
+              </optgroup>
+            </select>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>

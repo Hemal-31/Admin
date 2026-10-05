@@ -16,10 +16,13 @@ import {
   Crown,
   Layers,
   ShieldCheck,
+  Phone,
+  Mail,
+  User,
 } from 'lucide-react';
 
 export default function CoordinatorTeams() {
-  const { user, getCoordinatorClientInstance } = useAuth();
+  const { user, coordinatorProfile, getCoordinatorClientInstance } = useAuth();
   const { addToast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -207,12 +210,12 @@ export default function CoordinatorTeams() {
             <table className="cyber-table">
               <thead>
                 <tr>
-                  <th>Team Info</th>
-                  <th>Event</th>
-                  <th>Team Leader</th>
-                  <th>Members</th>
-                  <th>Status</th>
-                  <th className="text-right">Roster</th>
+                  <th style={{ minWidth: '150px' }}>Team Info</th>
+                  <th style={{ minWidth: '150px' }}>Event</th>
+                  <th style={{ minWidth: '320px' }}>Team Participants (Phone & Email)</th>
+                  <th style={{ minWidth: '100px' }}>Members</th>
+                  <th style={{ minWidth: '110px' }}>Status</th>
+                  <th className="text-right" style={{ minWidth: '90px' }}>Roster</th>
                 </tr>
               </thead>
               <tbody>
@@ -223,7 +226,7 @@ export default function CoordinatorTeams() {
                   return (
                     <tr key={team.id}>
                       <td>
-                        <div className="font-semibold text-white">{team.team_name}</div>
+                        <div className="font-semibold text-white text-base">{team.team_name}</div>
                         <div className="font-mono text-xs text-brand-cyan mt-0.5">
                           #{team.team_code}
                         </div>
@@ -234,17 +237,71 @@ export default function CoordinatorTeams() {
                         </span>
                       </td>
                       <td>
-                        <div className="flex items-center gap-1.5 text-xs text-slate-200">
-                          <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                          <span className="font-mono font-medium text-amber-300">
-                            {team.team_leader_registration_code || '—'}
-                          </span>
+                        <div className="flex flex-col gap-2">
+                          {team.team_members && team.team_members.length > 0 ? (
+                            team.team_members.map((m, idx) => (
+                              <div
+                                key={idx}
+                                className={`p-2 rounded-lg ${
+                                  m.role === 'LEADER'
+                                    ? 'bg-cyan-950/40 border border-cyan-500/30'
+                                    : 'bg-white/5 border border-white/10'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 mb-1">
+                                  {m.role === 'LEADER' ? (
+                                    <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                  ) : (
+                                    <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                  )}
+                                  <strong className="text-white text-sm">{m.name || 'Participant'}</strong>
+                                  <span
+                                    className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
+                                      m.role === 'LEADER'
+                                        ? 'bg-amber-500/20 text-amber-300'
+                                        : 'bg-slate-700/40 text-slate-300'
+                                    }`}
+                                  >
+                                    {m.role || 'MEMBER'}
+                                  </span>
+                                  {m.cs_id && (
+                                    <span className="font-mono text-xs text-[#00f0ff]">
+                                      ({m.cs_id})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-300">
+                                  {m.phone && (
+                                    <a
+                                      href={`tel:${m.phone}`}
+                                      className="inline-flex items-center gap-1 text-sky-400 hover:underline"
+                                      title="Call phone"
+                                    >
+                                      <Phone className="w-3 h-3" />
+                                      <span>{m.phone}</span>
+                                    </a>
+                                  )}
+                                  {m.email && (
+                                    <a
+                                      href={`mailto:${m.email}`}
+                                      className="inline-flex items-center gap-1 text-purple-300 hover:underline"
+                                      title="Send email"
+                                    >
+                                      <Mail className="w-3 h-3" />
+                                      <span>{m.email}</span>
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-xs text-slate-400">
+                              {team.team_leader_registration_code
+                                ? `Leader ID: ${team.team_leader_registration_code}`
+                                : 'No participants registered yet'}
+                            </div>
+                          )}
                         </div>
-                        {team.team_leader_name && (
-                          <div className="text-xs text-slate-400 mt-0.5 ml-5">
-                            {team.team_leader_name}
-                          </div>
-                        )}
                       </td>
                       <td>
                         <div className="flex items-center gap-2">
@@ -270,7 +327,7 @@ export default function CoordinatorTeams() {
                           className="btn-ghost text-xs inline-flex items-center gap-1.5 py-1 px-2.5"
                         >
                           <Eye className="w-3.5 h-3.5 text-brand-cyan" />
-                          View Roster
+                          View
                         </button>
                       </td>
                     </tr>

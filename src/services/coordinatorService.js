@@ -4,139 +4,200 @@ import {
   applyRegistrationOverrides,
   applyPaymentOverrides,
 } from '../utils/statusStore';
-import { BASELINE_REGISTRATIONS, BASELINE_PAYMENTS } from '../utils/sampleData';
+import { cachedRequest } from '../utils/requestCache';
+
+export const KNOWN_COORDINATOR_ASSIGNMENTS = {
+  'PP@gmail.com': [{ id: 'PP', code: 'PP', name: 'Paper Presentation', day: 'DAY_1', event_type: 'TEAM', venue: 'Main Auditorium' }],
+  'paper@gmail.com': [{ id: 'PP', code: 'PP', name: 'Paper Presentation', day: 'DAY_1', event_type: 'TEAM', venue: 'Main Auditorium' }],
+  'UN@gmail.com': [{ id: 'UN', code: 'UN', name: 'Unsaid', day: 'DAY_1', event_type: 'TEAM', venue: 'Main Auditorium' }],
+  'CC@gmail.com': [{ id: 'CC', code: 'CC', name: 'Cipher Coding', day: 'DAY_1', event_type: 'INDIVIDUAL', venue: 'Main Auditorium' }],
+  'WE@gmail.com': [{ id: 'WE', code: 'WE', name: 'Weblica', day: 'DAY_1', event_type: 'TEAM', venue: 'Main Auditorium' }],
+  'XC@gmail.com': [{ id: 'XC', code: 'XC', name: 'Xcoders', day: 'DAY_1', event_type: 'INDIVIDUAL', venue: 'Main Auditorium' }],
+  'GD@gmail.com': [{ id: 'GD', code: 'GD', name: 'Group Dance', day: 'DAY_2', event_type: 'TEAM', venue: 'Main Auditorium' }],
+  'SP@gmail.com': [{ id: 'SP', code: 'SP', name: 'Spotlight', day: 'DAY_2', event_type: 'INDIVIDUAL', venue: 'Main Auditorium' }],
+  'CO@gmail.com': [{ id: 'CO', code: 'CO', name: 'Connections', day: 'DAY_2', event_type: 'TEAM', venue: 'Main Auditorium' }],
+  'FTB@gmail.com': [{ id: 'FTB', code: 'FTB', name: 'Find the BGM', day: 'DAY_2', event_type: 'TEAM', venue: 'Main Auditorium' }],
+  'MS@gmail.com': [{ id: 'MS', code: 'MS', name: 'Mixed Signals', day: 'DAY_2', event_type: 'TEAM', venue: 'Main Auditorium' }],
+  'LIL@gmail.com': [{ id: 'LIL', code: 'LIL', name: 'Lost in Lyrics', day: 'DAY_2', event_type: 'TEAM', venue: 'Main Auditorium' }],
+  'TC@gmail.com': [{ id: 'TC', code: 'TC', name: 'Thiruvizha Corner', day: 'DAY_2', event_type: 'TEAM', venue: 'Main Auditorium' }],
+};
+
+export function getKnownCoordinatorAssignmentsById(coordinatorId) {
+  if (!coordinatorId || typeof coordinatorId !== 'string') return [];
+
+  const normalized = coordinatorId.toLowerCase();
+  const match = Object.entries(KNOWN_COORDINATOR_ASSIGNMENTS).find(([email]) => {
+    const slug = email.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return normalized.includes(slug) || normalized.includes(email.toLowerCase());
+  });
+
+  return match ? match[1] : [];
+}
 
 export async function getCoordinatorAssignedEvents(client, userId) {
-  const [normalAssignments, specialAssignments] = await Promise.all([
-    client
-      .from('event_coordinators')
-      .select('event_id, events(id, code, name, day, event_type, venue, min_team_size, max_team_size)')
-      .eq('coordinator_user_id', userId),
-    client
-      .from('special_event_coordinators')
-      .select('special_event_id, special_events(id, code, name, fee)')
-      .eq('coordinator_user_id', userId),
-  ]);
+  return cachedRequest(`coord-events:${userId || 'anon'}`, async () => {
+    let normalAssignments = { data: [], error: null };
+    let specialAssignments = { data: [], error: null };
 
-  if (normalAssignments.error) throw normalAssignments.error;
-  if (specialAssignments.error) throw specialAssignments.error;
+    if (userId) {
+      [normalAssignments, specialAssignments] = await Promise.all([
+        client
+          .from('event_coordinators')
+          .select('event_id, events(id, code, name, day, event_type, venue, min_team_size, max_team_size)')
+          .eq('coordinator_user_id', userId),
+        client
+          .from('special_event_coordinators')
+          .select('special_event_id, special_events(id, code, name, fee)')
+          .eq('coordinator_user_id', userId),
+      ]);
+    }
 
-  const normalEvents = (normalAssignments.data || [])
-    .map((item) => item.events)
-    .filter(Boolean);
+    if (normalAssignments.error) throw normalAssignments.error;
+    if (specialAssignments.error) throw specialAssignments.error;
 
-  const specialEvents = (specialAssignments.data || [])
-    .map((item) => item.special_events)
-    .filter(Boolean);
+    const normalEvents = (normalAssignments.data || [])
+      .map((item) => item.events)
+      .filter(Boolean);
 
-  return { normalEvents, specialEvents };
+    const specialEvents = (specialAssignments.data || [])
+      .map((item) => item.special_events)
+      .filter(Boolean);
+
+    if ((normalEvents.length || specialEvents.length) || !userId) {
+      return { normalEvents, specialEvents };
+    }
+
+    const fallbackProfile = await client
+      .from('profiles')
+      .select('email')
+      .eq('id', userId)
+      .maybeSingle();
+
+    const fallbackEmail = fallbackProfile?.data?.email || '';
+    const fallbackForEmail = fallbackEmail ? KNOWN_COORDINATOR_ASSIGNMENTS[fallbackEmail] || KNOWN_COORDINATOR_ASSIGNMENTS[fallbackEmail.toLowerCase()] || [] : [];
+
+    const knownFallback = fallbackForEmail.length ? fallbackForEmail : getKnownCoordinatorAssignmentsById(userId);
+
+    if (knownFallback.length) {
+      return {
+        normalEvents: knownFallback,
+        specialEvents: [],
+      };
+    }
+
+    return { normalEvents, specialEvents };
+  }, 20000);
 }
 
 export async function getCoordinatorParticipants(client, assignedEvents = [], assignedSpecialEvents = []) {
-  const normalEventIds = assignedEvents.map((e) => e.id);
-  const specialEventIds = assignedSpecialEvents.map((e) => e.id);
+  const eventCacheKey = `coord-participants:${(assignedEvents || []).map((e) => e.id).join('-')}::${(assignedSpecialEvents || []).map((e) => e.id).join('-')}`;
 
-  let allowedRegistrationIds = new Set();
-  try {
-    const [normalAccessResult, specialAccessResult] = await Promise.all([
-      normalEventIds.length
-        ? client.from('event_registrations').select('registration_id').in('event_id', normalEventIds)
-        : Promise.resolve({ data: [] }),
-      specialEventIds.length
-        ? client
-            .from('special_event_registrations')
-            .select('registration_id')
-            .in('special_event_id', specialEventIds)
-        : Promise.resolve({ data: [] }),
-    ]);
+  return cachedRequest(
+    eventCacheKey,
+    async () => {
+      const normalEventIds = assignedEvents.map((e) => e.id);
+      const specialEventIds = assignedSpecialEvents.map((e) => e.id);
 
-    const normalAccess = normalAccessResult.data;
-    const specialAccess = specialAccessResult.data;
+      let allowedRegistrationIds = new Set();
+      try {
+        const [normalAccessResult, specialAccessResult] = await Promise.all([
+          normalEventIds.length
+            ? client.from('selected_event_registrations').select('registration_id').in('event_id', normalEventIds)
+            : Promise.resolve({ data: [] }),
+          specialEventIds.length
+            ? client
+                .from('special_event_registrations')
+                .select('registration_id')
+                .in('special_event_id', specialEventIds)
+            : Promise.resolve({ data: [] }),
+        ]);
 
-    allowedRegistrationIds = new Set([
-      ...(normalAccess || []).map((r) => r.registration_id),
-      ...(specialAccess || []).map((r) => r.registration_id),
-    ]);
-  } catch (err) {
-    console.warn('Coordinator access query notice:', err);
-  }
+        const normalAccess = normalAccessResult.data;
+        const specialAccess = specialAccessResult.data;
 
-  const assignedDays = new Set(assignedEvents.map((e) => e.day));
-  let dayRegistrationIds = [];
-  if (assignedDays.size) {
-    try {
-      const dayFilter = [...assignedDays]
-        .map((day) => `selected_day.eq.${day}`)
-        .concat('selected_day.eq.BOTH')
-        .join(',');
-
-      const { data: dayRegs } = await client
-        .from('registrations')
-        .select('id')
-        .or(dayFilter)
-        .order('created_at', { ascending: false });
-
-      dayRegistrationIds = (dayRegs || []).map((r) => r.id);
-    } catch (err) {
-      console.warn('Coordinator day registration query notice:', err);
-    }
-  }
-
-  const allVisibleIds = [...new Set([...dayRegistrationIds, ...allowedRegistrationIds])];
-  let rawList = [];
-
-  if (allVisibleIds.length) {
-    try {
-      const { data, error } = await client
-        .from('registrations')
-        .select(
-          'id, registration_code, selected_day, status, created_at, qr_token, participants(name, email, college, department, phone, year), event_registrations(event_id, active, events(id, code, name, day, event_type)), special_event_registrations(special_event_id, special_events(id, code, name))'
-        )
-        .in('id', allVisibleIds)
-        .order('created_at', { ascending: false });
-
-      if (!error && data && data.length > 0) {
-        rawList = data;
+        allowedRegistrationIds = new Set([
+          ...(normalAccess || []).map((r) => r.registration_id),
+          ...(specialAccess || []).map((r) => r.registration_id),
+        ]);
+      } catch (err) {
+        console.warn('Coordinator access query notice:', err);
       }
-    } catch (err) {
-      console.warn('Coordinator participant query notice:', err);
-    }
-  }
 
-  if (!rawList.length) {
-    // If no records filtered by coordinator assignment, show baseline symposium participants
-    rawList = BASELINE_REGISTRATIONS;
-  }
+      const assignedDays = new Set(assignedEvents.map((e) => e.day));
+      let dayRegistrationIds = [];
+      if (assignedDays.size) {
+        try {
+          const dayFilter = [...assignedDays]
+            .map((day) => `selected_day.eq.${day}`)
+            .concat('selected_day.eq.BOTH')
+            .join(',');
 
-  const normalized = (rawList || []).map((r) => {
-    const evList = [];
-    if (r.event_registrations) {
-      r.event_registrations.forEach((er) => {
-        if (er.events?.name) evList.push(er.events.name);
+          const { data: dayRegs } = await client
+            .from('registrations')
+            .select('id')
+            .or(dayFilter)
+            .order('created_at', { ascending: false });
+
+          dayRegistrationIds = (dayRegs || []).map((r) => r.id);
+        } catch (err) {
+          console.warn('Coordinator day registration query notice:', err);
+        }
+      }
+
+      const allVisibleIds = [...new Set([...dayRegistrationIds, ...allowedRegistrationIds])];
+      let rawList = [];
+
+      if (allVisibleIds.length) {
+        try {
+          const { data, error } = await client
+            .from('registrations')
+            .select(
+              'id, registration_code, selected_day, status, created_at, qr_token, participants(name, email, college, department, phone, year), payments(amount, status), selected_event_registrations(event_id, events(id, code, name, day, event_type)), special_event_registrations(special_event_id, special_events(id, code, name))'
+            )
+            .in('id', allVisibleIds)
+            .order('created_at', { ascending: false });
+
+          if (!error && data) {
+            rawList = data;
+          }
+        } catch (err) {
+          console.warn('Coordinator participant query notice:', err);
+        }
+      }
+
+      const normalized = (rawList || []).map((r) => {
+        const evList = [];
+        const selections = r.selected_event_registrations || r.event_registrations || [];
+        selections.forEach((er) => {
+          if (er.events?.name) evList.push(er.events.name);
+        });
+
+        if (r.special_event_registrations) {
+          r.special_event_registrations.forEach((sr) => {
+            if (sr.special_events?.name) evList.push(sr.special_events.name);
+          });
+        }
+
+        const defaultName =
+          r.selected_day === 'BOTH'
+            ? 'Symposium Day 1 & 2'
+            : r.selected_day === 'DAY_1'
+              ? 'Technical Events (Day 1)'
+              : r.selected_day === 'DAY_2'
+                ? 'Non-Technical Events (Day 2)'
+                : 'Symposium Pass';
+
+        return {
+          ...r,
+          events: evList.length ? evList : [defaultName],
+          event_name: evList[0] || defaultName,
+        };
       });
-    }
-    if (r.special_event_registrations) {
-      r.special_event_registrations.forEach((sr) => {
-        if (sr.special_events?.name) evList.push(sr.special_events.name);
-      });
-    }
-    const defaultName =
-      r.selected_day === 'BOTH'
-        ? 'Symposium Day 1 & 2'
-        : r.selected_day === 'DAY_1'
-        ? 'Technical Events (Day 1)'
-        : r.selected_day === 'DAY_2'
-        ? 'Non-Technical Events (Day 2)'
-        : 'Symposium Pass';
 
-    return {
-      ...r,
-      events: evList.length ? evList : [defaultName],
-      event_name: evList[0] || defaultName,
-    };
-  });
-
-  return applyRegistrationOverrides(normalized);
+      return applyRegistrationOverrides(normalized);
+    },
+    20000
+  );
 }
 
 export async function updateCoordinatorParticipantStatus(client, registrationId, newStatus, userId, reason = '') {
@@ -151,7 +212,7 @@ export async function updateCoordinatorParticipantStatus(client, registrationId,
         client.from('registrations').update({ status: 'PAYMENT_PENDING', updated_at: new Date().toISOString() }).eq('id', registrationId),
         client.from('payments').update({ status: 'PENDING', updated_at: new Date().toISOString() }).eq('registration_id', registrationId),
       ]);
-    } catch {}
+    } catch { }
     saveStatusOverride(registrationId, 'PAYMENT_PENDING', 'PENDING');
     return true;
   }
@@ -165,13 +226,13 @@ export async function getCoordinatorPayments(client, assignedEvents = [], assign
   try {
     const [{ data: normalAccess }, { data: specialAccess }] = await Promise.all([
       normalEventIds.length
-        ? client.from('event_registrations').select('registration_id').in('event_id', normalEventIds)
+        ? client.from('selected_event_registrations').select('registration_id').in('event_id', normalEventIds)
         : Promise.resolve({ data: [] }),
       specialEventIds.length
         ? client
-            .from('special_event_registrations')
-            .select('registration_id')
-            .in('special_event_id', specialEventIds)
+          .from('special_event_registrations')
+          .select('registration_id')
+          .in('special_event_id', specialEventIds)
         : Promise.resolve({ data: [] }),
     ]);
 
@@ -188,11 +249,11 @@ export async function getCoordinatorPayments(client, assignedEvents = [], assign
     const { data, error } = await client
       .from('payments')
       .select(
-        'registration_id, amount, utr, status, screenshot_path, submitted_at, registrations(registration_code, selected_day, qr_token, participants(name, email, college, department), event_registrations(events(code, name)), special_event_registrations(special_events(id, code, name)))'
+        'registration_id, amount, utr, status, screenshot_path, submitted_at, registrations(registration_code, selected_day, qr_token, participants(name, email, college, department), selected_event_registrations(events(code, name)), special_event_registrations(special_events(id, code, name)))'
       )
       .order('submitted_at', { ascending: false });
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       if (allowedRegistrationIds.size > 0) {
         rawPayments = data.filter((p) => allowedRegistrationIds.has(p.registration_id));
       } else {
@@ -201,10 +262,6 @@ export async function getCoordinatorPayments(client, assignedEvents = [], assign
     }
   } catch (err) {
     console.warn('Coordinator payments query notice:', err);
-  }
-
-  if (!rawPayments.length) {
-    rawPayments = BASELINE_PAYMENTS;
   }
 
   const processed = await Promise.all(
@@ -313,7 +370,7 @@ export async function getCoordinatorTeams(client) {
     (data || []).map(async (team) => {
       const { data: members } = await client
         .from('team_members')
-        .select('member_role, registrations(registration_code, participants(name))')
+        .select('member_role, registrations(registration_code, participants(name, phone, email))')
         .eq('team_id', team.id);
 
       return {
@@ -321,7 +378,9 @@ export async function getCoordinatorTeams(client) {
         team_members: (members || []).map((m) => ({
           role: m.member_role,
           cs_id: m.registrations?.registration_code,
-          name: m.registrations?.participants?.name,
+          name: m.registrations?.participants?.name || 'Participant',
+          phone: m.registrations?.participants?.phone || '',
+          email: m.registrations?.participants?.email || '',
         })),
       };
     })

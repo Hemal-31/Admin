@@ -1,22 +1,25 @@
+import bcrypt from 'bcryptjs';
 import { supabase } from '../config/supabase';
 import {
   saveStatusOverride,
   applyRegistrationOverrides,
   applyPaymentOverrides,
   applySummaryOverrides,
+  normalizeRegistrationStatus,
 } from '../utils/statusStore';
-import { BASELINE_REGISTRATIONS, BASELINE_PAYMENTS } from '../utils/sampleData';
+import { cachedRequest } from '../utils/requestCache';
 
 // Dashboard metrics
 export async function getDashboardSummary() {
-  let regData = null;
-  let payData = null;
+  return cachedRequest('admin-dashboard-summary', async () => {
+    let regData = null;
+    let payData = null;
 
-  try {
-    const [regRes, payRes] = await Promise.all([
-      supabase.from('admin_registration_summary').select('*').single(),
-      supabase.from('admin_payment_summary').select('*').single(),
-    ]);
+    try {
+      const [regRes, payRes] = await Promise.all([
+        supabase.from('admin_registration_summary').select('*').single(),
+        supabase.from('admin_payment_summary').select('*').single(),
+      ]);
 
     if (!regRes.error && regRes.data) regData = regRes.data;
     if (!payRes.error && payRes.data) payData = payRes.data;
@@ -24,63 +27,99 @@ export async function getDashboardSummary() {
     console.warn('Could not query admin summary views:', err);
   }
 
-  // Fallback baseline counts if views unavailable
+  // Fallback real-count defaults if views are not available
   if (!regData) {
-    regData = {
-      total_registrations: BASELINE_REGISTRATIONS.length,
-      day_1_registrations: BASELINE_REGISTRATIONS.filter((r) => r.selected_day === 'DAY_1').length,
-      day_2_registrations: BASELINE_REGISTRATIONS.filter((r) => r.selected_day === 'DAY_2').length,
-      both_day_registrations: BASELINE_REGISTRATIONS.filter((r) => r.selected_day === 'BOTH').length,
-      confirmed_registrations: BASELINE_REGISTRATIONS.filter((r) => r.status === 'CONFIRMED' || r.status === 'VERIFIED').length,
-      payment_pending: BASELINE_REGISTRATIONS.filter((r) => r.status === 'PAYMENT_PENDING' || r.status === 'PENDING').length,
-      cancelled_registrations: BASELINE_REGISTRATIONS.filter((r) => r.status === 'CANCELLED' || r.status === 'REJECTED').length,
-    };
+    try {
+      const { data: allRegs } = await supabase
+        .from('registrations')
+        .select('id, selected_day, status');
+      const regs = (allRegs || []).map((r) => ({
+        ...r,
+        status: normalizeRegistrationStatus(r),
+      }));
+      regData = {
+        total_registrations: regs.length,
+        day_1_registrations: regs.filter((r) => r.selected_day === 'DAY_1').length,
+        day_2_registrations: regs.filter((r) => r.selected_day === 'DAY_2').length,
+        both_day_registrations: regs.filter((r) => r.selected_day === 'BOTH').length,
+        confirmed_registrations: regs.filter((r) => r.status === 'CONFIRMED' || r.status === 'VERIFIED').length,
+        payment_pending: regs.filter((r) => r.status === 'PAYMENT_PENDING' || r.status === 'PENDING').length,
+        cancelled_registrations: regs.filter((r) => r.status === 'CANCELLED' || r.status === 'REJECTED').length,
+      };
+    } catch {
+      regData = {
+        total_registrations: 0,
+        day_1_registrations: 0,
+        day_2_registrations: 0,
+        both_day_registrations: 0,
+        confirmed_registrations: 0,
+        payment_pending: 0,
+        cancelled_registrations: 0,
+      };
+    }
   }
 
   if (!payData) {
-    payData = {
-      total_payments: BASELINE_PAYMENTS.length,
-      verified_payments: BASELINE_PAYMENTS.filter((p) => p.status === 'VERIFIED').length,
-      pending_payments: BASELINE_PAYMENTS.filter((p) => p.status === 'PENDING').length,
-      under_review_payments: BASELINE_PAYMENTS.filter((p) => p.status === 'UNDER_REVIEW').length,
-      rejected_payments: BASELINE_PAYMENTS.filter((p) => p.status === 'REJECTED').length,
-      flagged_payments: 0,
-      verified_amount: BASELINE_PAYMENTS.filter((p) => p.status === 'VERIFIED').reduce((acc, p) => acc + Number(p.amount || 0), 0),
-    };
+    try {
+      const { data: allPays } = await supabase
+        .from('payments')
+        .select('id, amount, status');
+      const pays = allPays || [];
+      payData = {
+        total_payments: pays.length,
+        verified_payments: pays.filter((p) => p.status === 'VERIFIED').length,
+        pending_payments: pays.filter((p) => p.status === 'PENDING').length,
+        under_review_payments: pays.filter((p) => p.status === 'UNDER_REVIEW').length,
+        rejected_payments: pays.filter((p) => p.status === 'REJECTED').length,
+        flagged_payments: 0,
+        verified_amount: pays
+          .filter((p) => p.status === 'VERIFIED')
+          .reduce((acc, p) => acc + Number(p.amount || 0), 0),
+      };
+    } catch {
+      payData = {
+        total_payments: 0,
+        verified_payments: 0,
+        pending_payments: 0,
+        under_review_payments: 0,
+        rejected_payments: 0,
+        flagged_payments: 0,
+        verified_amount: 0,
+      };
+    }
   }
 
-  // Apply real-time local status overrides
-  const adjusted = applySummaryOverrides(regData, payData);
+    // Apply real-time local status overrides
+    const adjusted = applySummaryOverrides(regData, payData);
 
-  return {
-    registrationSummary: adjusted.regSummary,
-    paymentSummary: adjusted.paySummary,
-  };
+    return {
+      registrationSummary: adjusted.regSummary,
+      paymentSummary: adjusted.paySummary,
+    };
+  }, 15000);
 }
 
 // Dashboard charts use live registrations merged with persistent overrides
 export async function getDashboardRegistrations() {
-  let list = [];
-  try {
-    const { data, error } = await supabase
-      .from('registrations')
-      .select(
-        'id, registration_code, selected_day, status, created_at, payments(status), event_registrations(event_id, active, events(id, code, name, day, event_type)), special_event_registrations(special_event_id, special_events(id, code, name))'
-      )
-      .order('created_at', { ascending: true });
+  return cachedRequest('admin-dashboard-registrations', async () => {
+    let list = [];
+    try {
+      const { data, error } = await supabase
+        .from('registrations')
+        .select(
+          'id, registration_code, selected_day, status, created_at, payments(status), selected_event_registrations(event_id, events(id, code, name, day, event_type)), special_event_registrations(special_event_id, special_events(id, code, name))'
+        )
+        .order('created_at', { ascending: true });
 
-    if (!error && data && data.length > 0) {
-      list = data;
+      if (!error && data) {
+        list = data;
+      }
+    } catch (err) {
+      console.warn('Dashboard registrations fetch warning:', err);
     }
-  } catch (err) {
-    console.warn('Dashboard registrations fetch warning:', err);
-  }
 
-  if (!list.length) {
-    list = BASELINE_REGISTRATIONS;
-  }
-
-  return applyRegistrationOverrides(list);
+    return applyRegistrationOverrides(list);
+  }, 15000);
 }
 
 // Fee Management
@@ -130,27 +169,25 @@ export async function updateAdminSpecialEventFee(specialEventId, fee) {
 
 // Registrations
 export async function getRegistrations() {
-  let list = [];
-  try {
-    const { data, error } = await supabase
-      .from('registrations')
-      .select(
-        'id, registration_code, selected_day, status, created_at, qr_token, participants(name, college, department, phone, email, year), event_registrations(event_id, active, events(id, code, name, day, event_type)), special_event_registrations(special_event_id, special_events(id, code, name))'
-      )
-      .order('created_at', { ascending: false });
+  return cachedRequest('admin-registrations', async () => {
+    let list = [];
+    try {
+      const { data, error } = await supabase
+        .from('registrations')
+        .select(
+          'id, registration_code, selected_day, status, created_at, qr_token, participants(name, college, department, phone, email, year), selected_event_registrations(event_id, events(id, code, name, day, event_type)), special_event_registrations(special_event_id, special_events(id, code, name))'
+        )
+        .order('created_at', { ascending: false });
 
-    if (!error && data && data.length > 0) {
-      list = data;
+      if (!error && data) {
+        list = data;
+      }
+    } catch (err) {
+      console.warn('Registrations fetch warning:', err);
     }
-  } catch (err) {
-    console.warn('Registrations fetch warning:', err);
-  }
 
-  if (!list.length) {
-    list = BASELINE_REGISTRATIONS;
-  }
-
-  return applyRegistrationOverrides(list);
+    return applyRegistrationOverrides(list);
+  }, 15000);
 }
 
 // Payments
@@ -160,7 +197,7 @@ export async function getPayments(statusFilter = '') {
     let query = supabase
       .from('payments')
       .select(
-        'id, registration_id, amount, utr, screenshot_path, status, submitted_at, registrations(registration_code, selected_day, qr_token, participants(name, email, college, department, year), event_registrations(events(code, name)), special_event_registrations(special_events(code, name)))'
+        'id, registration_id, amount, utr, screenshot_path, status, submitted_at, registrations(registration_code, selected_day, qr_token, participants(name, email, college, department, year), selected_event_registrations(events(code, name)), special_event_registrations(special_events(code, name)))'
       )
       .order('submitted_at', { ascending: false });
 
@@ -169,15 +206,11 @@ export async function getPayments(statusFilter = '') {
     }
 
     const { data, error } = await query;
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       rawList = data;
     }
   } catch (err) {
     console.warn('Payments fetch warning:', err);
-  }
-
-  if (!rawList.length) {
-    rawList = BASELINE_PAYMENTS;
   }
 
   const payments = await Promise.all(
@@ -198,7 +231,7 @@ export async function getPayments(statusFilter = '') {
         .map((item) => item.special_events?.name)
         .filter(Boolean);
 
-      const eventNames = (p.registrations?.event_registrations || [])
+      const eventNames = (p.registrations?.selected_event_registrations || [])
         .map((item) => item.events?.name)
         .filter(Boolean);
 
@@ -387,13 +420,73 @@ export async function getCoordinators() {
   }));
 }
 
-export async function createCoordinator(name, email, password) {
-  const { error } = await supabase.rpc('create_coordinator', {
-    p_name: name.trim(),
-    p_email: email.trim(),
-    p_password: password,
-  });
+function hashPassword(password) {
+  return bcrypt.hashSync(password, bcrypt.genSaltSync(10)).replace('$2b$', '$2a$');
+}
+
+async function ensureCoordinatorProfileRecord(name, email, password) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const { data: existing, error: lookupError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+
+  if (lookupError && lookupError.code !== 'PGRST116') {
+    throw lookupError;
+  }
+
+  if (existing?.id) return existing.id;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert({
+      name: name.trim(),
+      email: normalizedEmail,
+      role: 'COORDINATOR',
+      active: true,
+      password_hash: hashPassword(password),
+    })
+    .select('id')
+    .single();
+
   if (error) throw error;
+  return data.id;
+}
+
+export async function createCoordinator(name, email, password) {
+  try {
+    const { data, error } = await supabase.rpc('create_coordinator', {
+      p_name: name.trim(),
+      p_email: email.trim(),
+      p_password: password,
+    });
+    if (error) throw error;
+    return data || null;
+  } catch (rpcError) {
+    const id = await ensureCoordinatorProfileRecord(name, email, password);
+    return id;
+  }
+}
+
+export async function deleteCoordinator(coordinatorId) {
+  if (!coordinatorId) throw new Error('Coordinator id is required.');
+
+  const { error: sessionError } = await supabase
+    .from('coordinator_sessions')
+    .delete()
+    .eq('coordinator_id', coordinatorId);
+
+  if (sessionError) throw sessionError;
+
+  const { error } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', coordinatorId)
+    .eq('role', 'COORDINATOR');
+
+  if (error) throw error;
+  return true;
 }
 
 export async function assignEventToCoordinator({ coordinatorId, assignmentValue }) {
@@ -427,7 +520,7 @@ export async function getTeams() {
     (data || []).map(async (t) => {
       const { data: members } = await supabase
         .from('team_members')
-        .select('member_role, registrations(registration_code, participants(name))')
+        .select('member_role, registrations(registration_code, participants(name, phone, email))')
         .eq('team_id', t.id);
 
       return {
@@ -435,7 +528,9 @@ export async function getTeams() {
         team_members: (members || []).map((m) => ({
           role: m.member_role,
           cs_id: m.registrations?.registration_code,
-          name: m.registrations?.participants?.name,
+          name: m.registrations?.participants?.name || 'Participant',
+          phone: m.registrations?.participants?.phone || '',
+          email: m.registrations?.participants?.email || '',
         })),
       };
     })
@@ -615,14 +710,15 @@ export async function getParticipantsForAudience() {
   if (error) throw error;
   return (data || []).map((r) => {
     const pay = Array.isArray(r.payments) ? r.payments[0] : r.payments;
+    const p = Array.isArray(r.participants) ? r.participants[0] : r.participants;
     const isPresent = (r.attendance || []).some((a) => a.status === 'PRESENT');
     return {
       id: r.id,
       registration_code: r.registration_code,
-      name: r.participants?.name || 'Participant',
-      email: r.participants?.email || '',
-      phone: r.participants?.phone || '',
-      college: r.participants?.college || '',
+      name: p?.name || 'Participant',
+      email: p?.email || '',
+      phone: p?.phone || '',
+      college: p?.college || '',
       isVerified: pay?.status === 'VERIFIED',
       isPresent,
       isAbsent: !isPresent,

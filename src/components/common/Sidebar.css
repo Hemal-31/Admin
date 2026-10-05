@@ -28,7 +28,7 @@
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
-  background-color: #060814;
+  background: linear-gradient(180deg, rgba(7, 9, 24, 0.96), rgba(3, 6, 18, 1));
 }
 
 .cs-main {
@@ -38,6 +38,7 @@
   flex-direction: column;
   width: 100%;
   margin-left: 0;
+  background: linear-gradient(180deg, rgba(7, 10, 24, 0.96) 0%, rgba(6, 9, 21, 0.96) 100%);
   transition: margin-left 0.25s ease, width 0.25s ease;
 }
 
@@ -52,11 +53,12 @@
 .cs-content {
   flex: 1 1 auto;
   width: 100%;
-  max-width: 1440px;
+  max-width: 1500px;
   margin-left: auto;
   margin-right: auto;
   padding: 16px 14px 44px;
   box-sizing: border-box;
+  position: relative;
 }
 
 @media (min-width: 640px) {
@@ -88,11 +90,11 @@
   left: 0;
   z-index: 50;
   width: var(--cs-sidebar-w) !important;
-  background: #070919 !important;
-  background-image: 
-    radial-gradient(circle at 15% 10%, rgba(168, 85, 247, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 85% 90%, rgba(0, 240, 255, 0.06) 0%, transparent 40%),
-    linear-gradient(180deg, #090c22 0%, #060814 100%) !important;
+  background-color: rgba(7, 9, 25, 0.9) !important;
+  background-image: linear-gradient(180deg, rgba(3, 7, 18, 0.8) 0%, rgba(3, 7, 18, 0.88) 35%, rgba(2, 4, 12, 0.94) 100%) !important;
+  background-size: auto !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
   border-right: 1px solid rgba(168, 85, 247, 0.2) !important;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.45) !important;
   display: flex;
@@ -149,9 +151,35 @@
   justify-content: space-between;
   gap: 12px;
   height: 72px;
-  padding: 0 18px;
-  border-bottom: 1px solid rgba(168, 85, 247, 0.22);
-  background: linear-gradient(180deg, rgba(12, 16, 44, 0.92) 0%, rgba(6, 8, 20, 0.35) 100%);
+  margin: 12px 12px 10px;
+  padding: 0 16px 0 14px;
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  background: linear-gradient(180deg, rgba(7, 17, 32, 0.96), rgba(9, 12, 24, 0.8));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(168, 85, 247, 0.12),
+    0 0 0 1px rgba(12, 18, 40, 0.8),
+    0 0 20px rgba(34, 211, 238, 0.08);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+
+.cs-brand::before,
+.cs-brand::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.cs-brand::before {
+  inset: 6px 10px auto 10px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.7), transparent);
+}
+
+.cs-brand::after {
+  inset: auto 12px 6px 12px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.7), transparent);
 }
 
 .cs-brand-link {
@@ -239,23 +267,55 @@
    ========================================================================== */
 .cs-sidebar-nav {
   flex: 1 1 auto;
-  padding: 16px 12px;
+  padding: 10px 10px 16px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
 }
 
 .cs-sidebar-nav-group {
-  padding: 0 6px;
-  margin-bottom: 8px;
-  margin-top: 4px;
+  padding: 0 10px;
+  margin: 4px 0 2px;
   font-family: var(--font-mono, monospace);
   font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.26em;
   text-transform: uppercase;
-  color: #64748b;
+  color: #6ee7ff;
+  opacity: 0.9;
+  text-shadow: 0 0 10px rgba(34, 211, 238, 0.3);
+}
+
+.cs-nav-module {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(180deg, rgba(10, 16, 28, 0.98), rgba(8, 11, 20, 0.85));
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(168, 85, 247, 0.08),
+    0 0 0 1px rgba(12, 18, 27, 0.7);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+
+.cs-nav-module::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(34, 211, 238, 0.7), transparent);
+  opacity: 0.9;
+}
+
+.cs-nav-module::after {
+  content: "";
+  position: absolute;
+  inset: 8px 10px auto 10px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.7), rgba(168, 85, 247, 0.7), transparent);
+  opacity: 0.5;
 }
 
 .cs-sidebar-nav-item {
@@ -266,18 +326,25 @@
   height: 44px !important;
   min-height: 44px !important;
   padding: 0 13px !important;
-  border-radius: 10px !important;
+  border-radius: 0 !important;
   font-size: 13.5px !important;
   font-weight: 600 !important;
   letter-spacing: 0.015em !important;
   color: #94a3b8 !important;
-  border: 1px solid transparent !important;
-  background: transparent !important;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
   cursor: pointer !important;
   text-decoration: none !important;
   user-select: none !important;
   box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+
+.cs-sidebar-nav-item span {
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
 .cs-sidebar-nav-item .cs-nav-icon {
@@ -290,33 +357,34 @@
 
 /* Inactive Hover State */
 .cs-sidebar-nav-item:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.05) !important;
+  background: linear-gradient(180deg, rgba(17, 25, 39, 0.98), rgba(9, 13, 25, 0.9)) !important;
   color: #f1f5f9 !important;
-  border-color: rgba(0, 240, 255, 0.25) !important;
+  border-color: rgba(34, 211, 238, 0.38) !important;
   transform: translateX(2px) !important;
-  box-shadow: 0 0 12px rgba(0, 240, 255, 0.08) !important;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
 }
 
 .cs-sidebar-nav-item:hover:not(.active) .cs-nav-icon {
-  color: #00f0ff !important;
-  filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.5)) !important;
+  color: #6ee7ff !important;
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.5)) !important;
 }
 
 /* Active State with Cyan Glow & Indicator Bar */
 .cs-sidebar-nav-item.active {
-  background: linear-gradient(100deg, rgba(124, 58, 237, 0.26) 0%, rgba(168, 85, 247, 0.18) 55%, rgba(0, 240, 255, 0.08) 100%) !important;
-  border: 1px solid rgba(0, 240, 255, 0.4) !important;
+  background: linear-gradient(100deg, rgba(129, 76, 255, 0.32) 0%, rgba(168, 85, 247, 0.18) 48%, rgba(34, 211, 238, 0.12) 100%) !important;
+  border-color: rgba(34, 211, 238, 0.66) !important;
   box-shadow:
-    0 0 16px rgba(168, 85, 247, 0.24),
-    0 0 30px rgba(236, 72, 153, 0.1),
-    inset 0 0 12px rgba(0, 240, 255, 0.06) !important;
+    inset 0 0 0 1px rgba(34, 211, 238, 0.2),
+    0 0 22px rgba(59, 130, 246, 0.18),
+    0 0 18px rgba(168, 85, 247, 0.18),
+    inset 0 0 18px rgba(34, 211, 238, 0.06) !important;
   color: #ffffff !important;
   font-weight: 700 !important;
 }
 
 .cs-sidebar-nav-item.active .cs-nav-icon {
-  color: #00f0ff !important;
-  filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.75)) !important;
+  color: #7ef9ff !important;
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.8)) !important;
 }
 
 .cs-sidebar-nav-item.active::before {
@@ -328,14 +396,14 @@
   width: 3.5px !important;
   height: 20px !important;
   border-radius: 0 4px 4px 0 !important;
-  background: #00f0ff !important;
-  box-shadow: 0 0 10px #00f0ff, 0 0 14px rgba(0, 240, 255, 0.8) !important;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 1), rgba(168, 85, 247, 1));
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.8), 0 0 16px rgba(168, 85, 247, 0.6) !important;
 }
 
 /* Danger / Logout Navigation Item */
 .cs-nav-danger:hover {
-  background: rgba(244, 63, 94, 0.12) !important;
-  border-color: rgba(244, 63, 94, 0.35) !important;
+  background: linear-gradient(180deg, rgba(37, 10, 18, 0.98), rgba(23, 7, 15, 0.9)) !important;
+  border-color: rgba(244, 63, 94, 0.38) !important;
   color: #fb7185 !important;
 }
 
@@ -347,20 +415,65 @@
 /* Sidebar Footer & Identity Block */
 .cs-sidebar-footer {
   position: relative;
-  padding: 12px 14px;
-  border-top: 1px solid rgba(168, 85, 247, 0.18);
-  background: rgba(0, 0, 0, 0.22);
+  padding: 8px 10px 14px;
+  border-top: 1px solid rgba(168, 85, 247, 0.15);
+  background: rgba(2, 6, 15, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .cs-coord-id {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
-  margin-bottom: 6px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 10px 10px;
+  min-width: 0;
+  width: 100%;
+  background: linear-gradient(180deg, rgba(15, 22, 36, 0.96), rgba(9, 12, 22, 0.85));
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 0 12px rgba(34, 211, 238, 0.06);
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+
+.cs-coord-meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.cs-coord-name {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  color: #ffffff;
+}
+
+.cs-coord-role {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 3px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: #00f0ff;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.45);
 }
 
 .cs-coord-avatar {
@@ -376,6 +489,7 @@
   font-size: 13px;
   font-family: var(--font-heading, sans-serif);
   flex-shrink: 0;
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.35);
 }
 
 /* ==========================================================================
@@ -389,13 +503,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 64px;
-  padding: 10px 16px;
+  min-height: 72px;
+  padding: 12px 16px;
   border-bottom: 1px solid rgba(139, 92, 246, 0.2);
-  background: linear-gradient(180deg, rgba(7, 9, 25, 0.95) 0%, rgba(7, 9, 25, 0.85) 100%);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: linear-gradient(180deg, rgba(7, 9, 25, 0.8) 0%, rgba(7, 9, 25, 0.9) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   box-sizing: border-box;
+  box-shadow: inset 0 -1px 0 rgba(168, 85, 247, 0.16);
 }
 
 @media (min-width: 640px) {
@@ -430,6 +545,8 @@
   align-items: center;
   justify-content: center;
   min-width: 0;
+  flex: 1 1 auto;
+  width: 100%;
 }
 
 @media (min-width: 768px) {
@@ -552,6 +669,42 @@
   border-radius: 12px;
   border: 1px solid rgba(0, 240, 255, 0.22);
   background: linear-gradient(180deg, rgba(10, 13, 36, 0.85), rgba(8, 10, 28, 0.45));
+}
+
+.cs-event-rule {
+  display: block;
+  width: 34px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(0, 240, 255, 0), rgba(0, 240, 255, 0.9), rgba(168, 85, 247, 0));
+}
+
+.cs-event-rule-right {
+  background: linear-gradient(90deg, rgba(168, 85, 247, 0), rgba(0, 240, 255, 0.9), rgba(0, 240, 255, 0));
+}
+
+.cs-event-diamond {
+  width: 10px;
+  height: 10px;
+  color: #67e8f9;
+  opacity: 0.9;
+  filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.45));
+}
+
+.cs-event-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(168, 85, 247, 0.2);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: #e9d5ff;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
 }
 
 .cs-event-title-text {

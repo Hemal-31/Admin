@@ -129,7 +129,17 @@ export function AdminMainAttendance() {
             type="button"
             onClick={() => setIsScannerOpen(true)}
             className="btn btn-primary"
-            style={{ padding: '14px 28px', fontSize: '1.05rem', boxShadow: '0 0 25px var(--accent-cyan-glow)' }}
+            style={{
+              padding: '14px 28px',
+              fontSize: '1.05rem',
+              background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 45%, #4f46e5 100%)',
+              color: '#ffffff',
+              border: '1px solid rgba(125, 211, 252, 0.8)',
+              boxShadow: '0 0 25px rgba(34, 211, 238, 0.45)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '10px',
+            }}
           >
             <Camera size={22} /> Open QR Scanner
           </button>
@@ -138,11 +148,11 @@ export function AdminMainAttendance() {
         {/* Manual Lookup Option */}
         <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '24px' }}>
           <label className="form-label">Manual Registration Lookup</label>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
             <input
               type="text"
               className="form-input"
-              style={{ flex: 1 }}
+              style={{ flex: '1 1 220px', minWidth: 0, minHeight: '44px' }}
               placeholder="e.g. CS-1042"
               value={manualCode}
               onChange={(e) => setManualCode(e.target.value)}
@@ -155,6 +165,7 @@ export function AdminMainAttendance() {
                 }
               }}
               className="btn btn-secondary"
+              style={{ minHeight: '44px', whiteSpace: 'nowrap' }}
             >
               <Search size={16} /> Lookup
             </button>

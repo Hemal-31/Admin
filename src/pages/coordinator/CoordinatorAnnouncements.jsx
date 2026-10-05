@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export default function CoordinatorAnnouncements() {
-  const { user, getCoordinatorClientInstance } = useAuth();
+  const { user, coordinatorProfile, getCoordinatorClientInstance } = useAuth();
   const { addToast } = useToast();
 
   const [loading, setLoading] = useState(true);

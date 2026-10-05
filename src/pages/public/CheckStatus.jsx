@@ -75,7 +75,7 @@ export function CheckStatus() {
       } else {
         addToast({
           title: 'Record Located',
-          message: `Registration status: ${data.registration.status}. Payment is under review.`,
+          message: `Registration status: ${data.registration.status}. Payment is being processed automatically.`,
           type: 'info',
         });
       }
@@ -120,6 +120,7 @@ export function CheckStatus() {
 
   function handleDownloadConfirmationTxt() {
     if (!result) return;
+    const transactionId = result.payment?.transaction_id || result.payment?.utr || result.payment?.utr_masked || 'Hidden';
     const txt = `
 ========================================
 CYBER SENTINEL 2K26 - REGISTRATION RECORD
@@ -131,7 +132,7 @@ Department:      ${result.participant.department}
 Registered Day:  ${result.registration.selected_day}
 Status:          ${result.registration.status}
 Payment Status:  ${result.payment?.status || 'PENDING'}
-UTR Reference:   ${result.payment?.utr_masked || 'Hidden'}
+Transaction ID:  ${transactionId}
 Amount Paid:     ₹${result.payment?.amount || '0'}
 Verification URL:${result.qr_url || 'Available after verification'}
 ========================================
@@ -294,10 +295,10 @@ Please present your official QR pass at the entrance desk.
 
               <div>
                 <div style={{ color: 'var(--text-dim)', fontSize: '0.78rem', textTransform: 'uppercase' }}>
-                  UTR Reference
+                  Transaction ID
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                  {result.payment?.utr_masked || 'Hidden'}
+                  {result.payment?.transaction_id || result.payment?.utr || result.payment?.utr_masked || 'Hidden'}
                 </div>
               </div>
 

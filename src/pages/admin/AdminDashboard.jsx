@@ -45,7 +45,7 @@ export default function AdminDashboard() {
   const [allEvents, setAllEvents] = useState([]);
   const [registrations, setRegistrations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [chartView, setChartView] = useState('TECH_BREAKDOWN'); // 'TECH_BREAKDOWN' | 'TRACK_DISTRIBUTION'
+  const [chartView, setChartView] = useState('TECH_BREAKDOWN'); // 'TECH_BREAKDOWN' | 'NON_TECH_BREAKDOWN' | 'TOTAL_BREAKDOWN' | 'SPECIAL_BREAKDOWN'
 
   // New special event state
   const [newEventCode, setNewEventCode] = useState('');
@@ -143,10 +143,36 @@ export default function AdminDashboard() {
   // Each registration choice is a separate segment, so the donut is always
   // an accurate representation of database registrations (including BOTH and
   // SPECIAL registrations) without double-counting anyone.
-  const day1TechCount = Number(regSum.day_1_registrations ?? trackCounts.day1);
-  const day2NonTechCount = Number(regSum.day_2_registrations ?? trackCounts.day2);
-  const bothDayCount = Number(regSum.both_day_registrations ?? trackCounts.both);
-  const specialTracksCount = trackCounts.special;
+  const countByCategory = registrations.reduce(
+    (counts, regItem) => {
+      const selectedDay = String(regItem?.selected_day || '').toUpperCase();
+      const selectedEventRegs = regItem.selected_event_registrations || regItem.event_registrations || [];
+      const specialRegs = regItem.special_event_registrations || [];
+
+      const hasTech = selectedEventRegs.some((reg) => {
+        const eventDay = String(reg?.events?.day || reg?.day || '').toUpperCase();
+        return eventDay === 'DAY_1' || eventDay === 'BOTH' || eventDay === 'ALL';
+      });
+
+      const hasNonTech = selectedEventRegs.some((reg) => {
+        const eventDay = String(reg?.events?.day || reg?.day || '').toUpperCase();
+        return eventDay === 'DAY_2' || eventDay === 'BOTH' || eventDay === 'ALL';
+      });
+
+      if (selectedDay === 'DAY_1' || hasTech) counts.tech += 1;
+      if (selectedDay === 'DAY_2' || hasNonTech) counts.nonTech += 1;
+      if (selectedDay === 'BOTH' || selectedDay === 'ALL') counts.both += 1;
+      if (selectedDay === 'SPECIAL' || specialRegs.length > 0) counts.special += 1;
+
+      return counts;
+    },
+    { tech: 0, nonTech: 0, both: 0, special: 0 }
+  );
+
+  const day1TechCount = Number(regSum.day_1_registrations ?? countByCategory.tech ?? trackCounts.day1);
+  const day2NonTechCount = Number(regSum.day_2_registrations ?? countByCategory.nonTech ?? trackCounts.day2);
+  const bothDayCount = Number(regSum.both_day_registrations ?? countByCategory.both ?? trackCounts.both);
+  const specialTracksCount = Number(trackCounts.special ?? countByCategory.special);
 
   const day1Pct = percentageOf(day1TechCount, totalRegistrations);
   const day2Pct = percentageOf(day2NonTechCount, totalRegistrations);
@@ -162,15 +188,36 @@ export default function AdminDashboard() {
     { label: 'Special Tracks / Workshops', count: specialTracksCount, percentage: specialPct, color: '#10b981' },
   ].filter((s) => s.count > 0 || totalRegistrations === 0);
 
-  // Technical events list (Day 1) breakdown
-  const systemTechEvents = allEvents.filter((event) => event.day === 'DAY_1');
-  const finalTechEvents = systemTechEvents.length
-    ? systemTechEvents
-    : [
-        { id: 'pp', code: 'PP', name: 'Paper Presentation', day: 'DAY_1' },
-        { id: 'sc', code: 'SC', name: 'Scrambled Code', day: 'DAY_1' },
-        { id: 'ux', code: 'UX', name: 'UI/UX', day: 'DAY_1' },
-      ];
+  const canonicalDay1Events = [
+    { id: 'PP', code: 'PP', name: 'Paper Presentation', day: 'DAY_1' },
+    { id: 'UN', code: 'UN', name: 'Unsaid', day: 'DAY_1' },
+    { id: 'CC', code: 'CC', name: 'Cipher Coding', day: 'DAY_1' },
+    { id: 'WE', code: 'WE', name: 'Weblica', day: 'DAY_1' },
+    { id: 'XC', code: 'XC', name: 'Xcoders', day: 'DAY_1' },
+  ];
+
+  const dedupeByCode = (items = []) => {
+    const seen = new Map();
+    items.forEach((event) => {
+      const key = (event?.code || event?.id || event?.name || '').toString().trim().toUpperCase();
+      if (!key || seen.has(key)) return;
+      seen.set(key, {
+        ...event,
+        id: event?.id || key,
+        code: event?.code || key,
+        name: event?.name || key,
+        day: event?.day || 'DAY_1',
+      });
+    });
+    return [...seen.values()];
+  };
+
+  // Technical events list (Day 1) breakdown synced to the live app event catalog
+  const systemTechEvents = dedupeByCode([
+    ...allEvents,
+    ...canonicalDay1Events,
+  ]).filter((event) => event.day === 'DAY_1');
+  const finalTechEvents = systemTechEvents.length ? systemTechEvents : canonicalDay1Events;
 
   const distinctColors = [
     '#00f0ff', // Electric Cyan
@@ -183,36 +230,53 @@ export default function AdminDashboard() {
     '#84cc16', // Electric Lime
   ];
 
+  const normalizeEventValue = (value) => String(value ?? '').trim().toLowerCase();
+  const eventCountKey = (event) => normalizeEventValue(event?.code || event?.id || event?.name);
+
+  const locateEventMatch = (candidate, eventPool = finalTechEvents) => {
+    if (!candidate) return null;
+    const candidateKeys = [
+      candidate?.id,
+      candidate?.event_id,
+      candidate?.code,
+      candidate?.name,
+      candidate?.events?.id,
+      candidate?.events?.code,
+      candidate?.events?.name,
+      candidate?.event_name,
+    ]
+      .filter(Boolean)
+      .map(normalizeEventValue);
+
+    return eventPool.find((event) => {
+      const eventKeys = [event?.id, event?.code, event?.name].filter(Boolean).map(normalizeEventValue);
+      return eventKeys.some((key) => candidateKeys.includes(key));
+    });
+  };
+
   const eventCounts = new Map();
-  finalTechEvents.forEach((ev) => eventCounts.set(ev.id, 0));
+  finalTechEvents.forEach((ev) => eventCounts.set(eventCountKey(ev), 0));
 
   registrations.forEach((regItem) => {
     let matched = false;
-    (regItem.event_registrations || []).forEach((reg) => {
-      if (reg.active === false) return;
-      const regId = reg.event_id || reg.events?.id;
-      if (regId && eventCounts.has(regId)) {
-        eventCounts.set(regId, eventCounts.get(regId) + 1);
+    const selections = regItem.selected_event_registrations || regItem.event_registrations || [];
+    selections.forEach((reg) => {
+      if (reg?.active === false) return;
+      const matchedEvent = locateEventMatch(reg.events || reg);
+      if (matchedEvent) {
+        const key = eventCountKey(matchedEvent);
+        eventCounts.set(key, (eventCounts.get(key) || 0) + 1);
         matched = true;
-      } else if (reg.events?.name) {
-        const found = finalTechEvents.find(
-          (e) =>
-            e.name.toLowerCase() === reg.events.name.toLowerCase() ||
-            (e.code && reg.events.code && e.code.toLowerCase() === reg.events.code.toLowerCase())
-        );
-        if (found) {
-          eventCounts.set(found.id, eventCounts.get(found.id) + 1);
-          matched = true;
-        }
       }
     });
 
     if (!matched) {
-      const day = regItem.event_day || regItem.registration_type;
+      const day = regItem.event_day || regItem.registration_type || regItem.selected_day;
       if (day === 'DAY_1' || day === 'BOTH' || day === 'ALL') {
         const firstEv = finalTechEvents[0];
         if (firstEv) {
-          eventCounts.set(firstEv.id, eventCounts.get(firstEv.id) + 1);
+          const key = eventCountKey(firstEv);
+          eventCounts.set(key, (eventCounts.get(key) || 0) + 1);
         }
       }
     }
@@ -221,7 +285,7 @@ export default function AdminDashboard() {
   const totalTechRegistrations = Array.from(eventCounts.values()).reduce((a, b) => a + b, 0);
 
   const techSegments = finalTechEvents.map((ev, index) => {
-    const count = eventCounts.get(ev.id) || 0;
+    const count = eventCounts.get(eventCountKey(ev)) || 0;
     return {
       label: ev.name,
       count,
@@ -230,11 +294,167 @@ export default function AdminDashboard() {
     };
   });
 
+  const canonicalNonTechEvents = [
+    { id: 'GD', code: 'GD', name: 'Group Dance', day: 'DAY_2' },
+    { id: 'SP', code: 'SP', name: 'Stage Play', day: 'DAY_2' },
+    { id: 'CO', code: 'CO', name: 'Connections', day: 'DAY_2' },
+    { id: 'FTB', code: 'FTB', name: 'Football', day: 'DAY_2' },
+    { id: 'MS', code: 'MS', name: 'Mystic Signals', day: 'DAY_2' },
+    { id: 'LIL', code: 'LIL', name: 'LIL', day: 'DAY_2' },
+    { id: 'TC', code: 'TC', name: 'Turf Challenge', day: 'DAY_2' },
+  ];
+
+  const systemNonTechEvents = dedupeByCode([
+    ...allEvents,
+    ...canonicalNonTechEvents,
+  ]).filter((event) => event.day === 'DAY_2' || event.day === 'BOTH' || event.day === 'ALL' || !event.day);
+  const finalNonTechEvents = systemNonTechEvents.length ? systemNonTechEvents : canonicalNonTechEvents;
+
+  const nonTechCounts = new Map();
+  finalNonTechEvents.forEach((ev) => nonTechCounts.set(eventCountKey(ev), 0));
+
+  registrations.forEach((regItem) => {
+    const selections = regItem.selected_event_registrations || regItem.event_registrations || [];
+    let matched = false;
+
+    selections.forEach((reg) => {
+      if (reg?.active === false) return;
+      const matchedEvent = locateEventMatch(reg.events || reg, finalNonTechEvents);
+      if (matchedEvent) {
+        const key = eventCountKey(matchedEvent);
+        nonTechCounts.set(key, (nonTechCounts.get(key) || 0) + 1);
+        matched = true;
+      }
+    });
+
+    if (!matched) {
+      const day = regItem.event_day || regItem.registration_type || regItem.selected_day;
+      if (day === 'DAY_2' || day === 'BOTH' || day === 'ALL') {
+        const firstEv = finalNonTechEvents[0];
+        if (firstEv) {
+          const key = eventCountKey(firstEv);
+          nonTechCounts.set(key, (nonTechCounts.get(key) || 0) + 1);
+        }
+      }
+    }
+  });
+
+  const totalNonTechRegistrations = Array.from(nonTechCounts.values()).reduce((a, b) => a + b, 0);
+
+  const nonTechSegments = finalNonTechEvents.map((ev, index) => {
+    const count = nonTechCounts.get(eventCountKey(ev)) || 0;
+    return {
+      label: ev.name,
+      count,
+      percentage: percentageOf(count, totalNonTechRegistrations),
+      color: distinctColors[index % distinctColors.length],
+    };
+  });
+
+  const totalSegments = [
+    { label: 'Tech Events', count: day1TechCount, percentage: percentageOf(day1TechCount, totalRegistrations), color: '#00f0ff' },
+    { label: 'Non-Tech Events', count: day2NonTechCount, percentage: percentageOf(day2NonTechCount, totalRegistrations), color: '#f59e0b' },
+    { label: 'Both Days', count: bothDayCount, percentage: percentageOf(bothDayCount, totalRegistrations), color: '#a855f7' },
+    { label: 'Special Events', count: specialTracksCount, percentage: percentageOf(specialTracksCount, totalRegistrations), color: '#10b981' },
+  ].filter((segment) => segment.count > 0 || totalRegistrations === 0);
+
+  const specialSegments = dedupeByCode((specialEvents || []).map((event) => ({
+    ...event,
+    id: event.id,
+    code: event.code || event.name,
+    name: event.name,
+    day: 'SPECIAL',
+  }))).map((event, index) => ({
+    label: event.name,
+    count: registrations.filter((regItem) => (regItem.special_event_registrations || []).some((specialReg) => {
+      const target = specialReg.special_events || specialReg;
+      return String(target?.id || target?.code || target?.name || '').toLowerCase() === String(event.id || event.code || event.name || '').toLowerCase();
+    })).length,
+    percentage: percentageOf(
+      registrations.filter((regItem) => (regItem.special_event_registrations || []).some((specialReg) => {
+        const target = specialReg.special_events || specialReg;
+        return String(target?.id || target?.code || target?.name || '').toLowerCase() === String(event.id || event.code || event.name || '').toLowerCase();
+      })).length,
+      Math.max(1, specialTracksCount || registrations.length)
+    ),
+    color: distinctColors[index % distinctColors.length],
+  })).filter((segment) => segment.count > 0 || specialTracksCount === 0);
+
+  const chartConfig = {
+    TECH_BREAKDOWN: {
+      title: 'Technical Events Distribution',
+      subtitle: 'Breakdown of participants registered across technical competitions',
+      segments: techSegments,
+      totalCount: totalTechRegistrations,
+      totalLabel: 'Total Tech',
+    },
+    NON_TECH_BREAKDOWN: {
+      title: 'Non-Technical Events Distribution',
+      subtitle: 'Breakdown of participants registered across non-technical events',
+      segments: nonTechSegments,
+      totalCount: totalNonTechRegistrations,
+      totalLabel: 'Total Non-Tech',
+    },
+    TOTAL_BREAKDOWN: {
+      title: 'Day Split & Event Mix',
+      subtitle: 'Tech, Non-Tech, both-day and special-event comparison across the symposium',
+      segments: totalSegments,
+      totalCount: totalRegistrations,
+      totalLabel: 'Total Reg',
+    },
+    SPECIAL_BREAKDOWN: {
+      title: 'Special Events Distribution',
+      subtitle: 'Breakdown of participants across premium workshops and special tracks',
+      segments: specialSegments.length ? specialSegments : [{ label: 'No Special Event', count: 0, percentage: 0, color: '#10b981' }],
+      totalCount: specialTracksCount,
+      totalLabel: 'Total Special',
+    },
+  };
+
+  const activeChart = chartConfig[chartView] || chartConfig.TECH_BREAKDOWN;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8 animate-pulse">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-3">
+            <div className="h-4 w-28 rounded-full bg-slate-700/70" />
+            <div className="h-10 w-44 rounded-xl bg-slate-700/80" />
+            <div className="h-4 w-64 rounded-lg bg-slate-700/60" />
+          </div>
+          <div className="flex items-center gap-2.5">
+            <div className="h-11 w-56 rounded-xl bg-slate-700/70" />
+            <div className="h-11 w-11 rounded-xl bg-slate-700/70" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 sm:p-6">
+              <div className="h-12 w-12 rounded-2xl bg-slate-700/70" />
+              <div className="mt-6 h-12 w-28 rounded-xl bg-slate-700/70" />
+              <div className="mt-3 h-5 w-32 rounded-lg bg-slate-700/60" />
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7 h-[360px] rounded-2xl border border-white/10 bg-slate-900/60" />
+          <div className="lg:col-span-5 h-[360px] rounded-2xl border border-white/10 bg-slate-900/60" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Top Header Matching Mockup */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-950/70 border border-cyan-500/40 text-cyan-300 font-mono text-xs font-bold uppercase tracking-wider mb-2 shadow-[0_0_12px_rgba(0,240,255,0.2)]">
+            <span className="w-2 h-2 rounded-full bg-[#00f0ff] animate-pulse"></span>
+            CYBERSENTINEL 2K26 NATIONAL SYMPOSIUM
+          </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-heading text-white tracking-tight">
             Dashboard
           </h1>
@@ -355,38 +575,56 @@ export default function AdminDashboard() {
         {/* Right: Registrations by Event (Donut Chart) */}
         <div className="lg:col-span-5 cyber-chart-card flex flex-col justify-between">
           <EventDonutChart
-            title={chartView === 'TECH_BREAKDOWN' ? 'Technical Events Distribution' : 'Registrations by Track'}
-            subtitle={
-              chartView === 'TECH_BREAKDOWN'
-                ? 'Breakdown of participants registered across technical competitions'
-                : 'Live registration choices grouped by event day'
-            }
-            totalCount={chartView === 'TECH_BREAKDOWN' ? totalTechRegistrations : totalRegistrations}
-            totalLabel={chartView === 'TECH_BREAKDOWN' ? 'Total Tech' : 'Total Reg'}
-            segments={chartView === 'TECH_BREAKDOWN' ? techSegments : donutSegments}
+            title={activeChart.title}
+            subtitle={activeChart.subtitle}
+            totalCount={activeChart.totalCount}
+            totalLabel={activeChart.totalLabel}
+            segments={activeChart.segments}
             rightElement={
-              <div className="inline-flex p-1 bg-[#131024] border border-[#2e2652] rounded-xl text-xs gap-1 shadow-sm">
+              <div className="inline-flex flex-wrap items-center gap-1.5 p-1 bg-[#131024] border border-[#2e2652] rounded-xl text-xs shadow-sm">
                 <button
                   type="button"
                   onClick={() => setChartView('TECH_BREAKDOWN')}
                   className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${
                     chartView === 'TECH_BREAKDOWN'
-                      ? 'bg-gradient-to-r from-purple-700 to-indigo-600 text-white shadow-glow'
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 shadow-[0_0_12px_rgba(34,211,238,0.45)]'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  Tech Events
+                  Tech
                 </button>
                 <button
                   type="button"
-                  onClick={() => setChartView('DAILY_SPLIT')}
+                  onClick={() => setChartView('NON_TECH_BREAKDOWN')}
                   className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${
-                    chartView === 'DAILY_SPLIT'
-                      ? 'bg-gradient-to-r from-purple-700 to-indigo-600 text-white shadow-glow'
+                    chartView === 'NON_TECH_BREAKDOWN'
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 shadow-[0_0_12px_rgba(34,211,238,0.45)]'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  Track Split
+                  Non-Tech
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartView('TOTAL_BREAKDOWN')}
+                  className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${
+                    chartView === 'TOTAL_BREAKDOWN'
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 shadow-[0_0_12px_rgba(34,211,238,0.45)]'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Day Split
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartView('SPECIAL_BREAKDOWN')}
+                  className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${
+                    chartView === 'SPECIAL_BREAKDOWN'
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 shadow-[0_0_12px_rgba(34,211,238,0.45)]'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Special
                 </button>
               </div>
             }

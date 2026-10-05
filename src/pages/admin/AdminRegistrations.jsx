@@ -15,14 +15,10 @@ import {
   Filter,
   Eye,
   RefreshCw,
-  Trash2,
   ChevronLeft,
   ChevronRight,
   Download,
   Printer,
-  CheckCircle2,
-  Clock,
-  XCircle,
   QrCode,
   FileText,
   Calendar,
@@ -56,112 +52,6 @@ export default function AdminRegistrations() {
     onConfirm: () => {},
   });
 
-  // Sample data fallback matching mockup exactly if database is empty
-  const sampleRegistrations = [
-    {
-      id: 'reg-1',
-      registration_code: 'CS26-00124',
-      status: 'VERIFIED',
-      created_at: '2026-09-12T10:24:00Z',
-      selected_day: 'DAY_1',
-      qr_token: 'cs-token-00124',
-      participants: {
-        name: 'Arjun Kumar',
-        email: 'arjun.k@example.com',
-        phone: '+91 98765 43210',
-        college: 'Vel Tech High Tech College',
-        department: 'Computer Science Engineering',
-      },
-      events: ['Code Quest', 'Hackathon'],
-      event_name: 'Code Quest',
-    },
-    {
-      id: 'reg-2',
-      registration_code: 'CS26-00125',
-      status: 'VERIFIED',
-      created_at: '2026-09-12T11:15:00Z',
-      selected_day: 'DAY_1',
-      qr_token: 'cs-token-00125',
-      participants: {
-        name: 'Sneha R',
-        email: 'sneha.r@example.com',
-        phone: '+91 98765 43211',
-        college: 'SRM Institute of Science',
-        department: 'Information Technology',
-      },
-      events: ['UI/UX Design'],
-      event_name: 'UI/UX Design',
-    },
-    {
-      id: 'reg-3',
-      registration_code: 'CS26-00126',
-      status: 'PENDING_VERIFICATION',
-      created_at: '2026-09-13T09:40:00Z',
-      selected_day: 'BOTH',
-      qr_token: 'cs-token-00126',
-      participants: {
-        name: 'Vignesh B',
-        email: 'vignesh.b@example.com',
-        phone: '+91 98765 43212',
-        college: 'SSN College of Engineering',
-        department: 'Electronics & Communication',
-      },
-      events: ['Paper Presentation'],
-      event_name: 'Paper Presentation',
-    },
-    {
-      id: 'reg-4',
-      registration_code: 'CS26-00127',
-      status: 'VERIFIED',
-      created_at: '2026-09-13T14:20:00Z',
-      selected_day: 'DAY_2',
-      qr_token: 'cs-token-00127',
-      participants: {
-        name: 'Divya Sri',
-        email: 'divya.s@example.com',
-        phone: '+91 98765 43213',
-        college: 'Anna University CEG',
-        department: 'Computer Science',
-      },
-      events: ['Tech Quiz'],
-      event_name: 'Tech Quiz',
-    },
-    {
-      id: 'reg-5',
-      registration_code: 'CS26-00128',
-      status: 'REJECTED',
-      created_at: '2026-09-14T16:05:00Z',
-      selected_day: 'DAY_1',
-      qr_token: 'cs-token-00128',
-      participants: {
-        name: 'Karthik M',
-        email: 'karthik.m@example.com',
-        phone: '+91 98765 43214',
-        college: 'PSG College of Technology',
-        department: 'Mechanical Engineering',
-      },
-      events: ['Photography'],
-      event_name: 'Photography',
-    },
-    {
-      id: 'reg-6',
-      registration_code: 'CS26-00129',
-      status: 'PENDING_VERIFICATION',
-      created_at: '2026-09-15T08:50:00Z',
-      selected_day: 'BOTH',
-      qr_token: 'cs-token-00129',
-      participants: {
-        name: 'Harini V',
-        email: 'harini.v@example.com',
-        phone: '+91 98765 43215',
-        college: 'Vel Tech High Tech College',
-        department: 'Artificial Intelligence & DS',
-      },
-      events: ['Hackathon'],
-      event_name: 'Hackathon',
-    },
-  ];
-
   async function load() {
     setIsLoading(true);
     try {
@@ -170,12 +60,13 @@ export default function AdminRegistrations() {
         // Normalize events array
         const normalized = data.map((r) => {
           const registeredEvents = [];
-          if (r.event_registrations) {
-            r.event_registrations.forEach((er) => {
+          const eventRegs = r.selected_event_registrations || r.event_registrations || [];
+          if (Array.isArray(eventRegs)) {
+            eventRegs.forEach((er) => {
               if (er.events?.name) registeredEvents.push(er.events.name);
             });
           }
-          if (r.special_event_registrations) {
+          if (Array.isArray(r.special_event_registrations)) {
             r.special_event_registrations.forEach((sr) => {
               if (sr.special_events?.name) registeredEvents.push(sr.special_events.name);
             });
@@ -183,7 +74,7 @@ export default function AdminRegistrations() {
           return {
             ...r,
             events: registeredEvents.length ? registeredEvents : ['General Symposium Entry'],
-            event_name: registeredEvents[0] || (r.selected_day === 'BOTH' ? 'Symposium Day 1 & 2' : r.selected_day || 'Code Quest'),
+            event_name: registeredEvents[0] || (r.selected_day === 'BOTH' ? 'Symposium Day 1 & 2' : r.selected_day || 'Symposium Entry'),
           };
         });
         setRegistrations(normalized);
@@ -262,97 +153,6 @@ export default function AdminRegistrations() {
   const handleOpenDetails = (p) => {
     setSelectedParticipant(p);
     setActiveModalTab('Details');
-  };
-
-  const handleVerify = (target) => {
-    const p = target || selectedParticipant;
-    if (!p) return;
-    setConfirmModalConfig({
-      isOpen: true,
-      title: 'Verify Registration',
-      message: `Verify registration for ${p.participants?.name || p.registration_code}?`,
-      type: 'confirm',
-      confirmText: 'Verify',
-      isDanger: false,
-      onConfirm: async () => {
-        setConfirmModalConfig((prev) => ({ ...prev, isOpen: false }));
-        try {
-          await verifyPayment(p.id, null);
-          addToast(`Registration confirmed for ${p.participants?.name || p.registration_code}!`, 'success');
-          
-          // Optimistic UI Update for instant feedback
-          const updatedStatus = 'VERIFIED'; // Or 'CONFIRMED' depending on backend
-          setRegistrations((prev) => prev.map((item) => (item.id === p.id ? { ...item, status: updatedStatus } : item)));
-          
-          if (selectedParticipant && selectedParticipant.id === p.id) {
-            setSelectedParticipant({ ...selectedParticipant, status: updatedStatus });
-          }
-        } catch (err) {
-          addToast(err.message || 'Action completed with status sync.', 'info');
-        }
-      }
-    });
-  };
-
-  const handleReject = (target) => {
-    const p = target || selectedParticipant;
-    if (!p) return;
-    setConfirmModalConfig({
-      isOpen: true,
-      title: 'Reject Registration',
-      message: `Reject registration for ${p.participants?.name || p.registration_code}? Enter reason:`,
-      type: 'prompt',
-      confirmText: 'Reject',
-      isDanger: true,
-      onConfirm: async (reason) => {
-        setConfirmModalConfig((prev) => ({ ...prev, isOpen: false }));
-        const finalReason = reason || 'Administrative review rejection';
-        if (!finalReason.trim()) return;
-
-        try {
-          await rejectPayment(p.id, finalReason.trim(), null);
-          addToast(`Registration marked as rejected for ${p.participants?.name || p.registration_code}`, 'info');
-          
-          // Optimistic UI Update
-          setRegistrations((prev) => prev.map((item) => (item.id === p.id ? { ...item, status: 'REJECTED' } : item)));
-          
-          if (selectedParticipant && selectedParticipant.id === p.id) {
-            setSelectedParticipant({ ...selectedParticipant, status: 'REJECTED' });
-          }
-        } catch (err) {
-          addToast(err.message || 'Action completed with status sync.', 'info');
-        }
-      }
-    });
-  };
-
-  const handleMarkPending = (target) => {
-    const p = target || selectedParticipant;
-    if (!p) return;
-    setConfirmModalConfig({
-      isOpen: true,
-      title: 'Mark as Pending',
-      message: `Mark registration for ${p.participants?.name || p.registration_code} as pending?`,
-      type: 'confirm',
-      confirmText: 'Mark Pending',
-      isDanger: false,
-      onConfirm: async () => {
-        setConfirmModalConfig((prev) => ({ ...prev, isOpen: false }));
-        try {
-          await markRegistrationPending(p.id);
-          addToast(`Registration marked as pending for ${p.participants?.name || p.registration_code}`, 'success');
-          
-          // Optimistic UI Update
-          setRegistrations((prev) => prev.map((item) => (item.id === p.id ? { ...item, status: 'PAYMENT_PENDING' } : item)));
-          
-          if (selectedParticipant && selectedParticipant.id === p.id) {
-            setSelectedParticipant({ ...selectedParticipant, status: 'PAYMENT_PENDING' });
-          }
-        } catch (err) {
-          addToast(err.message || 'Could not mark this registration as pending.', 'error');
-        }
-      }
-    });
   };
 
   const handleExportDetails = () => {
@@ -566,35 +366,11 @@ export default function AdminRegistrations() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
-                            onClick={() => handleVerify(p)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-                            title="Accept & Verify Registration"
-                          >
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleReject(p)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                            title="Reject Registration"
-                          >
-                            <XCircle className="w-4 h-4 text-rose-400" />
-                          </button>
-                          <button
-                            type="button"
                             onClick={() => handleOpenDetails(p)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-brand-cyan hover:bg-white/5 transition-colors"
                             title="View Participant Details"
                           >
                             <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => addToast(`Auditing record ${p.registration_code}`, 'info')}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-white/5 transition-colors"
-                            title="Audit Record"
-                          >
-                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -837,31 +613,8 @@ export default function AdminRegistrations() {
                   </div>
                 </div>
 
-                {/* Action Buttons at bottom of Details Screen */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/[0.08]">
-                  <div className="flex gap-2 items-center flex-wrap">
-                    <button
-                      onClick={() => handleVerify(selectedParticipant)}
-                      className="px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/30 font-semibold transition-all text-xs flex items-center gap-1.5 shadow-[0_0_12px_rgba(16,185,129,0.2)]"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Accept & Verify</span>
-                    </button>
-                    <button
-                      onClick={() => handleReject(selectedParticipant)}
-                      className="px-4 py-2 rounded-xl border border-rose-500/40 text-rose-400 hover:bg-rose-500/10 font-semibold transition-all text-xs flex items-center gap-1.5"
-                    >
-                      <XCircle className="w-3.5 h-3.5" />
-                      <span>Reject</span>
-                    </button>
-                    <button
-                      onClick={() => handleMarkPending(selectedParticipant)}
-                      className="px-4 py-2 rounded-xl border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 font-semibold transition-all text-xs"
-                    >
-                      Mark as Pending
-                    </button>
-                  </div>
-
+                {/* Actions for the details view are not exposed because payment verification is automated. */}
+                <div className="flex justify-end pt-3 border-t border-white/[0.08]">
                   <button
                     onClick={handleExportDetails}
                     className="px-4 py-2 rounded-xl border border-cyan-500/40 text-[#00f0ff] hover:bg-cyan-500/10 font-semibold transition-all text-xs flex items-center gap-1.5"

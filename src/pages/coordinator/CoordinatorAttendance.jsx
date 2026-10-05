@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import {
@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 
 export default function CoordinatorAttendance() {
-  const { user, getCoordinatorClientInstance } = useAuth();
+  const { user, coordinatorProfile, getCoordinatorClientInstance } = useAuth();
   const { addToast } = useToast();
 
   const [assignedEvents, setAssignedEvents] = useState([]);
@@ -208,9 +208,15 @@ export default function CoordinatorAttendance() {
             {/* Camera Trigger */}
             <div className="space-y-4">
               <button
-                onClick={() => setScannerOpen(true)}
+                onClick={() => {
+                  if (!selectedEventId) {
+                    addToast('Please select an event first', 'error');
+                    return;
+                  }
+                  setScannerOpen(true);
+                }}
                 disabled={!selectedEventId}
-                className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-brand-cyan/20 to-brand-blue/20 hover:from-brand-cyan/30 hover:to-brand-blue/30 border border-brand-cyan/40 text-brand-cyan hover:text-white font-semibold flex items-center justify-center gap-3 transition-all group shadow-glow"
+                className="w-full py-4 px-6 rounded-xl border border-cyan-300/60 bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-500 text-white font-bold shadow-[0_0_22px_rgba(34,211,238,0.45)] hover:brightness-110 hover:shadow-[0_0_28px_rgba(59,130,246,0.5)] transition-all duration-200 flex items-center justify-center gap-3 group"
               >
                 <Camera className="w-6 h-6 group-hover:scale-110 transition-transform" />
                 <span className="text-base">Launch Camera QR Scanner</span>
@@ -225,21 +231,21 @@ export default function CoordinatorAttendance() {
               </div>
 
               {/* Manual Lookup Form */}
-              <form onSubmit={handleManualLookup} className="flex gap-2">
-                <div className="relative flex-1">
+              <form onSubmit={handleManualLookup} className="flex flex-col sm:flex-row items-stretch gap-2">
+                <div className="relative flex-1 min-w-0">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     placeholder="e.g. CS-26-0001 or raw token..."
                     value={manualCode}
                     onChange={(e) => setManualCode(e.target.value)}
-                    className="cyber-input pl-10 text-sm w-full font-mono uppercase"
+                    className="cyber-input pl-10 text-sm w-full font-mono uppercase min-h-[44px]"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={inspecting || !manualCode.trim() || !selectedEventId}
-                  className="btn-primary text-sm px-5 flex items-center gap-2"
+                  className="btn-primary text-sm px-5 flex items-center justify-center gap-2 shrink-0 min-h-[44px]"
                 >
                   {inspecting ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
@@ -421,34 +427,53 @@ export default function CoordinatorAttendance() {
         </div>
       </div>
 
-      {/* QR Camera Scanner Modal */}
+      {/* QR Camera Scanner Modal — only mount when explicitly opened */}
       {scannerOpen && (
         <QrScannerModal
-          isOpen={scannerOpen}
+          isOpen={true}
           onClose={() => setScannerOpen(false)}
           onScanSuccess={(token) => {
             setScannerOpen(false);
             handleInspect(token, null);
           }}
-          title={`Scan Badge - ${currentEvent?.name || 'Attendance'}`}
+          title={`Scan Badge — ${currentEvent?.name || 'Attendance'}`}
         />
       )}
 
       {/* Record Details Modal */}
       {selectedRecord && (
-        <DetailsModal
-          isOpen={!!selectedRecord}
-          onClose={() => setSelectedRecord(null)}
-          title={`Attendance Record: ${selectedRecord.registrations?.registration_code || ''}`}
-          data={{
-            registration_code: selectedRecord.registrations?.registration_code,
-            participant_name: selectedRecord.registrations?.participants?.name,
-            status: selectedRecord.status,
-            scanned_at: formatDate(selectedRecord.scanned_at),
-            scanned_by: selectedRecord.scanned_by_email,
-            event_id: selectedEventId,
-          }}
-        />
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+          onClick={(e) => { if (e.target === e.currentTarget) setSelectedRecord(null); }}
+        >
+          <div className="bg-[#120d29] border border-[#3b2d6a] rounded-2xl w-full max-w-md shadow-2xl p-6 text-white">
+            <div className="flex items-center justify-between border-b border-[#241c47] pb-3 mb-4">
+              <h2 className="text-lg font-bold">Attendance Record</h2>
+              <button
+                onClick={() => setSelectedRecord(null)}
+                className="p-1.5 rounded-lg bg-[#1f1742] hover:bg-[#2b1f5e] border border-[#3c2f6d] text-slate-300 hover:text-white transition-all"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-3 text-sm">
+              {[
+                ['CS Registration ID', selectedRecord.registrations?.registration_code || '—'],
+                ['Participant Name', selectedRecord.registrations?.participants?.name || '—'],
+                ['Email', selectedRecord.registrations?.participants?.email || '—'],
+                ['College', selectedRecord.registrations?.participants?.college || '—'],
+                ['Attendance Status', selectedRecord.status || 'PRESENT'],
+                ['Scanned At', formatDate(selectedRecord.scanned_at)],
+                ['Scanned By', selectedRecord.scanned_by_email || '—'],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-start justify-between gap-4 p-2.5 rounded-lg bg-[#181238] border border-[#2a1f52]">
+                  <span className="text-slate-400 text-xs font-semibold uppercase tracking-wide shrink-0">{label}</span>
+                  <span className="text-white font-medium text-right break-all">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
