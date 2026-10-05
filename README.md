@@ -188,3 +188,4 @@ Optimized bundle assets are output to `dist/`.
 
 ### 4. Deploying
 The `dist/` directory includes `_redirects` and is ready for instant one-click deployment on Netlify, Vercel, Cloudflare Pages, or Firebase Hosting.
+# Admin
